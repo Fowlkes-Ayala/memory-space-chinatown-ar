@@ -788,6 +788,7 @@
 			"originAnchor": "ImmersalAnchorGroup"
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
+			"conversatingTimeout": 8,
 			"patrolBoundaryParent": "PatrolBoundary",
 			"proximityRadius": 1.2
 		},

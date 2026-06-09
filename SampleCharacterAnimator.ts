@@ -148,6 +148,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _boundOnAudioPlaybackStarted: ((messageId: string) => void) | null = null;
 	private _boundOnAudioPlaybackComplete: ((messageId: string) => void) | null = null;
 	private _boundOnInterrupt: ((data: InterruptData) => void) | null = null;
+	private _boundOnSttResponse: ((payload: { text: string; isFinal: boolean }) => void) | null = null;
 
 	// ─── isConversating state ────────────────────────────────────────
 
@@ -183,6 +184,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _debugOverlay: HTMLElement | null = null;
 	private _debugContent: HTMLElement | null = null;
+	private _debugSummaryLine: HTMLElement | null = null;
 	private _debugCollapsed = false;
 	private _debugButtonComp: any = null;
 	private _boundOnDebugToggle: ((e: MouseEvent) => void) | null = null;
@@ -190,6 +192,10 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _debugEvents: string[] = [];
 	private _debugBoundaryStatus = "not yet sampled";
 	private _debugLastAnimPath = "none yet";
+	private _timerLastReason = "—";
+	private _timerStartedAt = 0;
+	private _sdkEventLog: string[] = [];
+	private _debugSections = new Map<string, { contentEl: HTMLElement; collapsed: boolean }>();
 
 	constructor(contextManager: ContextManager, instance: Component, protected constructorProps: ConstructionProps) {
 		super(contextManager, instance);
@@ -273,11 +279,13 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._boundOnAudioPlaybackStarted = () => this._onAudioPlaybackStarted();
 		this._boundOnAudioPlaybackComplete = () => this._onAudioPlaybackComplete();
 		this._boundOnInterrupt = () => this._onInterrupt();
+		this._boundOnSttResponse = (payload) => this._onSttResponse(payload);
 
 		client.on("characterAction", this._boundOnCharacterAction);
 		client.on("audioPlaybackStarted", this._boundOnAudioPlaybackStarted);
 		client.on("audioPlaybackComplete", this._boundOnAudioPlaybackComplete);
 		client.on("interrupt", this._boundOnInterrupt);
+		client.on("sttResponse", this._boundOnSttResponse);
 
 		this._logDebugEvent("EstuaryClient connected");
 		console.log("SampleCharacterAnimator: Subscribed to EstuaryClient events");
@@ -512,23 +520,41 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	}
 
 	private _onAudioPlaybackStarted(): void {
+		this._logSdkEvent("audioPlaybackStarted");
+		// Cancel any running inactivity timer — the character cannot be idle while speaking.
+		// This is the hard guard: no matter what started the timer (interrupt, greet fallback,
+		// re-entry, etc.), audio playing always wins and clears it.
+		if (this._inactivityTimer !== null) {
+			clearTimeout(this._inactivityTimer);
+			this._inactivityTimer = null;
+			this._logSdkEvent("  → timer CANCELLED");
+		}
 		if (this._state === "notEngaged" && this._hasGreeted) {
 			this._logDebugEvent("audio started → re-enter conversating");
 			this._enterConversating(false);
-		} else if (this._state === "isConversating") {
-			this._resetInactivityTimer();
 		}
 	}
 
 	private _onAudioPlaybackComplete(): void {
+		this._logSdkEvent("audioPlaybackComplete");
 		if (this._state === "isConversating") {
-			this._resetInactivityTimer();
+			this._resetInactivityTimer("audioPlaybackComplete");
+		}
+	}
+
+	private _onSttResponse(payload: { text: string; isFinal: boolean }): void {
+		this._logSdkEvent(`sttResponse isFinal=${payload.isFinal} "${payload.text.slice(0, 40)}"`);
+		if (this._state === "isConversating" && this._inactivityTimer !== null) {
+			clearTimeout(this._inactivityTimer);
+			this._inactivityTimer = null;
+			this._logSdkEvent("  → timer CANCELLED (user speaking)");
 		}
 	}
 
 	private _onInterrupt(): void {
+		this._logSdkEvent("interrupt");
 		if (this._state === "isConversating") {
-			this._resetInactivityTimer();
+			this._resetInactivityTimer("interrupt");
 		}
 	}
 
@@ -557,19 +583,20 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				this._logDebugEvent("spoke opening line");
 			} else {
 				console.log("SampleCharacterAnimator: Greeting viewer (no client/line)");
-				this._resetInactivityTimer();
+				this._resetInactivityTimer("greet-no-client-fallback");
 			}
 			// Timer starts in _onAudioPlaybackComplete so the 7s counts down
 			// after speech finishes, not while it's still playing.
-		} else {
-			this._resetInactivityTimer();
 		}
 		this._pickConversatingAnim();
 		this._logDebugEvent(`→ isConversating (greet=${greet})`);
 	}
 
-	private _resetInactivityTimer(): void {
+	private _resetInactivityTimer(reason: string): void {
 		if (this._inactivityTimer !== null) clearTimeout(this._inactivityTimer);
+		this._timerLastReason = reason;
+		this._timerStartedAt = performance.now();
+		this._logSdkEvent(`timer START (${reason})`);
 		this._inactivityTimer = setTimeout(() => {
 			this._inactivityTimer = null;
 			if (this._state === "isConversating") {
@@ -578,6 +605,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				this._state = "notEngaged";
 				this._enterNotEngaged();
 				this._logDebugEvent("inactivity timeout → patrol");
+				this._logSdkEvent("timer FIRED → notEngaged");
 			}
 		}, this.conversatingTimeout.value * 1000);
 	}
@@ -848,20 +876,10 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// Find the Mattercraft Button component in the scene to use as the toggle header.
 		const buttonComp = this._findDebugButtonComp();
 
-		// The content area — a raw div placed inside the button's container.
-		const contentEl = document.createElement("div");
-		contentEl.style.cssText = "margin-top:4px;white-space:pre";
-		this._debugContent = contentEl;
-
 		if (buttonComp) {
 			this._debugButtonComp = buttonComp;
-
-			// Initial label
 			buttonComp.innerText.value = "▼ Debug";
 
-			// Style the button via its DOM element.
-			// Explicit pointer-events:auto is required — the HTML overlay container
-			// typically has pointer-events:none, and inheriting it would block clicks.
 			const btnEl: HTMLButtonElement = buttonComp.element;
 			btnEl.style.cssText = [
 				"cursor:pointer",
@@ -877,8 +895,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				"text-align:left",
 			].join(";");
 
-			// Style the container that Mattercraft created to hold the button,
-			// and append the content div as a sibling inside it.
 			const container = btnEl.parentElement;
 			if (container) {
 				container.style.cssText = [
@@ -888,22 +904,75 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					"padding:8px 12px",
 					"border-radius:5px",
 					"pointer-events:auto",
-					"min-width:220px",
+					"min-width:240px",
+					"max-width:340px",
 					"margin-top:65px",
 				].join(";");
-				container.appendChild(contentEl);
-				this._debugOverlay = container;
-			}
 
-			// Register click via Mattercraft's onClick Event — this survives re-renders.
-			this._boundOnDebugToggle = () => {
-				this._debugCollapsed = !this._debugCollapsed;
-				contentEl.style.display = this._debugCollapsed ? "none" : "";
-				buttonComp.innerText.value = this._debugCollapsed ? "▶ Debug" : "▼ Debug";
-			};
-			buttonComp.onClick.addListener(this._boundOnDebugToggle);
+				// Summary line — always visible even when collapsed.
+				const summaryEl = document.createElement("div");
+				summaryEl.style.cssText = "margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:0.8";
+				this._debugSummaryLine = summaryEl;
+				container.appendChild(summaryEl);
+
+				// Sections wrapper — hidden when main toggle is collapsed.
+				const sectionsWrapper = document.createElement("div");
+				container.appendChild(sectionsWrapper);
+
+				const headerStyle = [
+					"cursor:pointer",
+					"user-select:none",
+					"pointer-events:auto",
+					"font-weight:bold",
+					"color:#afffaf",
+					"border-top:1px solid rgba(127,255,127,0.25)",
+					"margin-top:5px",
+					"padding-top:2px",
+				].join(";");
+
+				for (const [name, defaultCollapsed] of [
+					["State",     false],
+					["Patrol",    true ],
+					["Animation", true ],
+					["Events",    false],
+				] as Array<[string, boolean]>) {
+					const sectionEl  = document.createElement("div");
+					const headerEl   = document.createElement("div");
+					const sectionContent = document.createElement("div");
+
+					headerEl.style.cssText = headerStyle;
+					headerEl.textContent = `${defaultCollapsed ? "▶" : "▼"} ${name}`;
+					sectionContent.style.cssText = `white-space:pre;padding-top:2px${defaultCollapsed ? ";display:none" : ""}`;
+
+					const entry = { contentEl: sectionContent, collapsed: defaultCollapsed };
+					this._debugSections.set(name, entry);
+
+					headerEl.addEventListener("click", (e) => {
+						e.stopPropagation();
+						entry.collapsed = !entry.collapsed;
+						sectionContent.style.display = entry.collapsed ? "none" : "";
+						headerEl.textContent = `${entry.collapsed ? "▶" : "▼"} ${name}`;
+					});
+
+					sectionEl.appendChild(headerEl);
+					sectionEl.appendChild(sectionContent);
+					sectionsWrapper.appendChild(sectionEl);
+				}
+
+				this._debugOverlay = container;
+
+				this._boundOnDebugToggle = () => {
+					this._debugCollapsed = !this._debugCollapsed;
+					sectionsWrapper.style.display = this._debugCollapsed ? "none" : "";
+					buttonComp.innerText.value = this._debugCollapsed ? "▶ Debug" : "▼ Debug";
+				};
+				buttonComp.onClick.addListener(this._boundOnDebugToggle);
+			}
 		} else {
-			// Fallback: no Mattercraft button found — create a standalone fixed overlay.
+			// Fallback: no Mattercraft button — create a simple fixed overlay.
+			const contentEl = document.createElement("div");
+			contentEl.style.cssText = "white-space:pre";
+			this._debugContent = contentEl;
 			const el = document.createElement("div");
 			el.id = "sam-debug-fallback";
 			el.style.cssText = [
@@ -926,15 +995,27 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		if (this._debugEvents.length > 8) this._debugEvents.pop();
 	}
 
+	private _logSdkEvent(msg: string): void {
+		const t = (performance.now() / 1000).toFixed(1);
+		this._sdkEventLog.unshift(`[${t}s] ${msg}`);
+		if (this._sdkEventLog.length > 14) this._sdkEventLog.pop();
+	}
+
 	private _updateDebugOverlay(now: number): void {
-		if (!this._debugOverlay || !this._debugContent) return;
-		if (this._debugCollapsed) return;
+		if (!this._debugOverlay) return;
 		if (now - this._debugLastUpdate < 200) return;
 		this._debugLastUpdate = now;
 
+		// Summary line — always updated regardless of collapsed state.
+		if (this._debugSummaryLine) {
+			const lastEvent = this._debugEvents[0] ?? "—";
+			this._debugSummaryLine.innerHTML = `${this._state} &nbsp;·&nbsp; ${lastEvent}`;
+		}
+
+		if (this._debugCollapsed) return;
+
 		const obj = this._obj;
 
-		// Camera distance — use separate vec to avoid corrupting _tmpVec mid-frame
 		const cp = new Vector3();
 		let camDist = "—", camXYZ = "—";
 		if (this._camera) {
@@ -944,64 +1025,98 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			camDist = Math.sqrt((cp.x - cx) ** 2 + (cp.z - cz) ** 2).toFixed(2) + "m";
 			camXYZ = `(${cp.x.toFixed(2)}, ${cp.y.toFixed(2)}, ${cp.z.toFixed(2)})`;
 		}
-
-		// Character world position
 		obj.getWorldPosition(cp);
 		const charXYZ = `(${cp.x.toFixed(2)}, ${cp.y.toFixed(2)}, ${cp.z.toFixed(2)})`;
 
-		// Enumerate all animation behavior layers on Peacock_glb
-		const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
-		const animInfo: string[] = [];
-		if (behaviors) {
-			for (const bkey of Object.keys(behaviors)) {
-				const beh = behaviors[bkey];
-				const layers = beh?.layers;
-				if (layers) {
-					const lkeys = Object.keys(layers);
-					animInfo.push(`  ${bkey}: [${lkeys.join(", ")}]`);
-				}
-			}
-		}
-		if (animInfo.length === 0) animInfo.push("  (no behaviors with layers found)");
-
-		const bpName = this.patrolBoundaryParent.value;
-		const wp = this._patrolWaypoint;
-
-		// Visibility chain: obj + all ancestors
 		let visChain = "";
-		{
-			let node: Object3D | null = obj;
-			while (node) { visChain = (node.visible ? "✓" : "✗") + visChain; node = node.parent; }
-		}
+		{ let node: Object3D | null = obj; while (node) { visChain = (node.visible ? "✓" : "✗") + visChain; node = node.parent; } }
 		const matNaN = isNaN(obj.matrixWorld.elements[0]);
 
-		const lines = [
-			"── CharacterAnimator Debug ─────",
-			`state:         ${this._state}`,
-			`vpsReady:      ${this._vpsReady}`,
-			`visible chain: ${visChain}  matNaN:${matNaN}`,
-			`camera:        ${this._camera ? "found" : "NOT FOUND ⚠"}`,
-			`camWorldPos:   ${camXYZ}`,
-			`charWorldPos:  ${charXYZ}`,
-			`camDist:       ${camDist}  (r=${this.proximityRadius.value}m)`,
-			`estuaryClient: ${this._client ? "connected" : "waiting…"}`,
-			"",
-			"── Patrol ──────────────────────",
-			`boundaryParent: "${bpName || "(empty)"}"`,
-			`boundary:      ${this._debugBoundaryStatus}`,
-			`animState:     ${this._patrolAnimState}`,
-			`waypoint:      (${wp.x.toFixed(2)}, ${wp.z.toFixed(2)})`,
-			"",
-			"── Animation ───────────────────",
-			`lastPlay:      ${this._debugLastAnimPath}`,
-			"Peacock_glb behaviors:",
-			...animInfo,
-			"",
-			"── Events ──────────────────────",
-			...this._debugEvents,
-		];
+		// ── State section ────────────────────────────────────────────────
+		const stateEntry = this._debugSections.get("State");
+		if (stateEntry && !stateEntry.collapsed) {
+			stateEntry.contentEl.innerHTML = [
+				`state:      ${this._state}`,
+				`hasGreeted: ${this._hasGreeted}`,
+				`vpsReady:   ${this._vpsReady}`,
+				`visible:    ${visChain}  matNaN:${matNaN}`,
+				`camera:     ${this._camera ? "found" : "NOT FOUND ⚠"}`,
+				`camPos:     ${camXYZ}`,
+				`charPos:    ${charXYZ}`,
+				`camDist:    ${camDist}  (r=${this.proximityRadius.value}m)`,
+				`client:     ${this._client ? "connected" : "waiting…"}`,
+			].join("<br>");
+		}
 
-		this._debugContent.innerHTML = lines.join("<br>");
+		// ── Patrol section ───────────────────────────────────────────────
+		const patrolEntry = this._debugSections.get("Patrol");
+		if (patrolEntry && !patrolEntry.collapsed) {
+			const wp = this._patrolWaypoint;
+			patrolEntry.contentEl.innerHTML = [
+				`boundary:   "${this.patrolBoundaryParent.value || "(empty)"}"`,
+				`status:     ${this._debugBoundaryStatus}`,
+				`animState:  ${this._patrolAnimState}`,
+				`waypoint:   (${wp.x.toFixed(2)}, ${wp.z.toFixed(2)})`,
+			].join("<br>");
+		}
+
+		// ── Animation section ────────────────────────────────────────────
+		const animEntry = this._debugSections.get("Animation");
+		if (animEntry && !animEntry.collapsed) {
+			const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
+			const animInfo: string[] = [];
+			if (behaviors) {
+				for (const bkey of Object.keys(behaviors)) {
+					const layers = behaviors[bkey]?.layers;
+					if (layers) animInfo.push(`  ${bkey}: [${Object.keys(layers).join(", ")}]`);
+				}
+			}
+			if (animInfo.length === 0) animInfo.push("  (none)");
+			animEntry.contentEl.innerHTML = [
+				`lastPlay: ${this._debugLastAnimPath}`,
+				"behaviors:",
+				...animInfo,
+			].join("<br>");
+		}
+
+		// ── Events section ───────────────────────────────────────────────
+		const eventsEntry = this._debugSections.get("Events");
+		if (eventsEntry && !eventsEntry.collapsed) {
+			const timerRunning = this._inactivityTimer !== null;
+			const elapsed = this._timerStartedAt > 0
+				? `${((performance.now() - this._timerStartedAt) / 1000).toFixed(1)}s ago`
+				: "—";
+			eventsEntry.contentEl.innerHTML = [
+				`timer:    ${timerRunning ? "RUNNING" : "idle"}  started: ${elapsed}`,
+				`  reason: ${this._timerLastReason}`,
+				`  timeout: ${this.conversatingTimeout.value}s`,
+				"",
+				"SDK events:",
+				...this._sdkEventLog.map(e => `  ${e}`),
+				"",
+				"State changes:",
+				...this._debugEvents,
+			].join("<br>");
+		}
+
+		// ── Fallback (no button component) ───────────────────────────────
+		if (this._debugContent) {
+			const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
+			const animInfo: string[] = [];
+			if (behaviors) {
+				for (const bkey of Object.keys(behaviors)) {
+					const layers = behaviors[bkey]?.layers;
+					if (layers) animInfo.push(`  ${bkey}: [${Object.keys(layers).join(", ")}]`);
+				}
+			}
+			this._debugContent.innerHTML = [
+				`state: ${this._state}  hasGreeted: ${this._hasGreeted}`,
+				`camDist: ${camDist}  vpsReady: ${this._vpsReady}`,
+				`timer: ${this._inactivityTimer !== null ? "RUNNING" : "idle"}  reason: ${this._timerLastReason}`,
+				"SDK:", ...this._sdkEventLog.slice(0, 6).map(e => `  ${e}`),
+				"Events:", ...this._debugEvents,
+			].join("<br>");
+		}
 	}
 
 	// ─── Dispose ─────────────────────────────────────────────────────
@@ -1026,6 +1141,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			if (this._boundOnAudioPlaybackStarted) this._client.off("audioPlaybackStarted", this._boundOnAudioPlaybackStarted);
 			if (this._boundOnAudioPlaybackComplete) this._client.off("audioPlaybackComplete", this._boundOnAudioPlaybackComplete);
 			if (this._boundOnInterrupt) this._client.off("interrupt", this._boundOnInterrupt);
+			if (this._boundOnSttResponse) this._client.off("sttResponse", this._boundOnSttResponse);
 			this._client = null;
 		}
 		if (this._boundOnVpsLocalized) {
