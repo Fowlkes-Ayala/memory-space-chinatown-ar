@@ -1,0 +1,175 @@
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<script src="./index.ts" type="module" async></script>
+
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+		<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+
+		<style>
+			body,
+			html {
+				padding: 0;
+				margin: 0;
+				font-family: 'Nunito', sans-serif;
+				height: 100vh;
+				width: 100vw;
+				touch-action: pan-x pan-y;
+			}
+
+			h1 {
+				font-family: 'Fredoka', sans-serif;
+				font-weight: 400;
+			}
+
+			button {
+				font-family: inherit;
+			}
+
+			.splash {
+				background-color: rgb(30, 35, 34);
+				position: fixed;
+				width: 100%;
+				height: 100%;
+				z-index: 2000;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				justify-content: center;
+				text-align: center;
+				transition: opacity 0.6s ease;
+			}
+
+			.splash-box {
+				width: 304px;
+				max-width: 90%;
+				background: rgba(30, 35, 34, 0.78);
+				border-radius: 8px;
+				padding: 50px 20px 50px 20px;
+				box-sizing: border-box;
+			}
+
+			.splash-box > h1 {
+				font-size: 34px;
+				font-weight: 400;
+				padding: 0;
+				margin: 0;
+				color: white;
+			}
+
+			.splash-highlight {
+				color: #7ec4b8;
+			}
+
+			.zcomponent-launched .splash {
+				opacity: 0;
+				pointer-events: none;
+			}
+
+			#launchButton {
+				background: #5aad9e;
+				border-radius: 8px;
+				border: none;
+				padding: 11px 23px;
+				font-size: 20px;
+				margin-top: 30px;
+				line-height: 24px;
+				height: 48px;
+				color: black;
+			}
+
+			#launchButton:disabled {
+				background: none;
+				background-color: none;
+				width: 48px;
+				visibility: hidden;
+				padding: 0px;
+			}
+
+			#launchButton:disabled:before {
+				content: ' ';
+				visibility: visible;
+				display: block;
+				width: 48px;
+				height: 48px;
+				margin: 0px;
+				border-radius: 50%;
+				box-sizing: border-box;
+				border: 5px solid #fff;
+				border-color: #fff transparent #fff transparent;
+				animation: loading-animation 1.2s linear infinite;
+			}
+
+			@keyframes loading-animation {
+				0% {
+					transform: rotate(0deg);
+				}
+				100% {
+					transform: rotate(360deg);
+				}
+			}
+
+		/* Mute button */
+		.mute-btn {
+			display: none;
+			position: fixed;
+			bottom: 40px;
+			left: 50%;
+			transform: translateX(-50%);
+			z-index: 3000;
+			width: 64px;
+			height: 64px;
+			border-radius: 50%;
+			border: none;
+			background: #5aad9e;
+			align-items: center;
+			justify-content: center;
+			cursor: pointer;
+			-webkit-tap-highlight-color: transparent;
+		}
+
+		.zcomponent-launched .mute-btn {
+			display: flex;
+		}
+
+		.mute-btn svg {
+			width: 28px;
+			height: 28px;
+			fill: #1e2322;
+		}
+
+		.mute-btn .mic-slash {
+			display: none;
+		}
+
+		.mute-btn.muted .mic-slash {
+			display: block;
+		}
+
+		.mute-btn.muted {
+			background: rgba(30, 35, 34, 0.7);
+			border: 2px solid rgba(212, 145, 143, 0.6);
+		}
+
+		.mute-btn.muted svg {
+			fill: #d4918f;
+		}
+		</style>
+	</head>
+	<body>
+		<div class="splash">
+			<div class="splash-box">
+				<h1> Estuary <span class="splash-highlight">Template</span></h1>
+				<button id="launchButton" disabled>Launch</button>
+			</div>
+		</div>
+		<button id="muteButton" class="mute-btn" aria-label="Toggle microphone mute">
+			<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+				<path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.93V21h2v-3.07A7 7 0 0 0 19 11h-2z"/>
+				<line class="mic-slash" x1="3" y1="3" x2="21" y2="21" stroke="#d4918f" stroke-width="2.5" stroke-linecap="round"/>
+			</svg>
+		</button>
+	</body>
+</html>

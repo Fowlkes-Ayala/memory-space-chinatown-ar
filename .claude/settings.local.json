@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m json.tool)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/three/package.json'\\); console.log\\('three version:', pkg.version\\);\")",
+      "Bash(npx tsc *)",
+      "Bash(grep -v \"^Version\\\\|^tsc:\\\\|^COMMON\\\\|^ tsc\\\\|^ -\\\\|^$\")",
+      "WebFetch(domain:docs.zap.works)",
+      "Bash(npm view *)",
+      "Bash(npm install *)",
+      "Bash(which python3.11 python3.12 node)"
+    ]
+  }
+}

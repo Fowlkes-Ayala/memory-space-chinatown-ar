@@ -1,0 +1,23 @@
+{
+  "name": "estuary-mattercraft-template",
+  "version": "1.0.0",
+  "description": "Mattercraft template for voice-enabled AR characters powered by Estuary AI",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@estuary-ai/sdk": "^0.5.0",
+    "@zcomponent/core": "1.x",
+    "@zcomponent/html": "1.x",
+    "@zcomponent/immersal": "1.x",
+    "@zcomponent/three": "1.x",
+    "@zcomponent/zappar-three": "4.x",
+    "three": "0.150.1"
+  },
+  "devDependencies": {
+    "@types/three": "0.150.1",
+    "typescript": "4.8.4"
+  }
+}
