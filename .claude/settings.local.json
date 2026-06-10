@@ -10,7 +10,8 @@
       "WebFetch(domain:docs.zap.works)",
       "Bash(npm view *)",
       "Bash(npm install *)",
-      "Bash(which python3.11 python3.12 node)"
+      "Bash(which python3.11 python3.12 node)",
+      "Bash(xargs ls)"
     ]
   }
 }

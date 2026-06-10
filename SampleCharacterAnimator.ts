@@ -297,11 +297,11 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 * Plays an animation clip by searching the root scene animation and then all
 	 * behaviors on Peacock_glb. Records which path succeeded in _debugLastAnimPath.
 	 */
-	private _play(layerName: string, clipName: string): void {
+	private _play(layerName: string, clipName: string, loop = false): void {
 		// Try the root scene's top-level animation first
 		const sceneClip = (this._rootScene as any)?.animation?.layers?.[layerName]?.clips?.[clipName];
 		if (sceneClip) {
-			sceneClip.play();
+			sceneClip.play({ loop });
 			this._debugLastAnimPath = `scene.${layerName}.${clipName}`;
 			return;
 		}
@@ -311,7 +311,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			for (const key of Object.keys(behaviors)) {
 				const clip = behaviors[key]?.layers?.[layerName]?.clips?.[clipName];
 				if (clip) {
-					clip.play();
+					clip.play({ loop });
 					this._debugLastAnimPath = `Peacock_glb.behaviors.${key} → ${layerName}`;
 					return;
 				}
@@ -388,7 +388,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				if (!this._patrolIsPaused) {
 					if (this._patrolAnimState !== "walk") {
 						this._patrolAnimState = "walk";
-						this._play("Peacock_A15_Walk", "Peacock_A15_Walk");
+						this._play("Peacock_A15_Walk", "Peacock_A15_Walk", true);
 					}
 					// _patrolWaypoint is fixed in WORLD space (the boundary markers don't move),
 					// but obj.parent (ImmersalAnchorGroup's tracker group) has its pose recomputed
@@ -494,12 +494,12 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 						const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
 						if (walkClip) {
 							walkClip.timeScale = 0.4;
-							walkClip.play();
+							walkClip.play({ loop: true });
 						}
 					} else if (this._isTurning && angularDist < TURN_OFF) {
 						this._isTurning = false;
 						const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
-						if (walkClip) walkClip.timeScale = 1.0;
+						if (walkClip) { walkClip.timeScale = 1.0; walkClip.stop(); }
 						this._pickConversatingAnim();
 					}
 
@@ -566,7 +566,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._isTurning = false;
 		this._state = "approaching";
 		this._patrolAnimState = "none";
-		this._play("Peacock_A15_Walk", "Peacock_A15_Walk");
+		this._play("Peacock_A15_Walk", "Peacock_A15_Walk", true);
 		this._logDebugEvent("→ approaching viewer");
 	}
 
@@ -575,6 +575,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._clearConversatingTimers();
 		this._isTurning = false;
 		this._state = "isConversating";
+		const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
+		if (walkClip) walkClip.stop();
 
 		if (greet) {
 			const line = this.openingLine.value.trim();
@@ -677,6 +679,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _beginPatrolPause(): void {
 		this._patrolIsPaused = true;
 		this._patrolAnimState = "pausing";
+		const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
+		if (walkClip) walkClip.stop();
 
 		const duration = MathUtils.randFloat(this.minPauseDuration.value, this.maxPauseDuration.value);
 		this._patrolPauseTimer = setTimeout(() => {
