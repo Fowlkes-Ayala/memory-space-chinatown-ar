@@ -762,6 +762,8 @@
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
 			"visible": true,
+			"visibleWhenInitializing": false,
+			"visibleWhenPaused": true,
 			"wireframePreview": false
 		},
 		"ad45d1a5acda48c69755ecab561a19b7": {

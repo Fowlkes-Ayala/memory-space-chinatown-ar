@@ -11,7 +11,9 @@
       "Bash(npm view *)",
       "Bash(npm install *)",
       "Bash(which python3.11 python3.12 node)",
-      "Bash(xargs ls)"
+      "Bash(xargs ls)",
+      "Bash(/usr/bin/git -C /Users/isabelfowlkes/Documents/meml-chinatown/Mattercraft-Estuary-Template/estuary-mattercraft-template-main log --oneline -5)",
+      "Bash(/usr/bin/git -C /Users/isabelfowlkes/Documents/meml-chinatown/Mattercraft-Estuary-Template/estuary-mattercraft-template-main diff --stat)"
     ]
   }
 }

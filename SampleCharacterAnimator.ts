@@ -6,6 +6,9 @@ import { Vector3, Quaternion, Object3D, MathUtils } from "three";
 
 type AnimationState = "notEngaged" | "approaching" | "isConversating";
 
+/** Semantic animation behaviours, mapped to scene layer/clip names in `_ANIM`. */
+type AnimKey = "walk" | "idle" | "preen" | "shake" | "display";
+
 interface ConstructionProps {
 	patrolBoundaryParent?: string;
 	walkSpeed?: number;
@@ -20,6 +23,9 @@ interface ConstructionProps {
 	conversatingTimeout?: number;
 	turnSpeed?: number;
 	openingLine?: string;
+	crossfadeTime?: number;
+	displayChance?: number;
+	noticeDuration?: number;
 }
 
 /**
@@ -83,14 +89,17 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	public conversatingIdleWeight = new Observable<number>(1.0);
 
 	/**
-	 * Relative likelihood of Peacock_A15_lickingfeathers during conversation
+	 * Relative likelihood of preening (calm grooming) during conversation —
+	 * mostly a "listening" comfort behaviour; suppressed while actually speaking.
 	 * @zui
 	 * @zdefault 1.0
 	 */
 	public conversatingLickingWeight = new Observable<number>(1.0);
 
 	/**
-	 * Relative likelihood of Peacock_A15_SpreadFeathers2 during conversation
+	 * Relative likelihood of expressive feather movement during conversation —
+	 * mostly a quick feather-shake, occasionally a full tail display for emphasis
+	 * (the full display is further gated by displayChance).
 	 * @zui
 	 * @zdefault 1.0
 	 */
@@ -127,11 +136,37 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		"Walk softly, and look down. Fourteen feet below, the bones of Old Chinatown were sealed. Beneath the concrete and the ballast and the rails, Peacock Alley still lies."
 	);
 
+	/**
+	 * Crossfade duration (seconds) used when blending between animations.
+	 * Larger = softer, more sluggish transitions; smaller = snappier.
+	 * @zui
+	 * @zdefault 0.35
+	 */
+	public crossfadeTime = new Observable<number>(0.35);
+
+	/**
+	 * Probability (0–1) that a wander pause becomes a full tail-feather display
+	 * (the big "showing off" spread) rather than a calmer idle/preen/shake.
+	 * Kept low — a full display is a special, deliberate act.
+	 * @zui
+	 * @zdefault 0.1
+	 */
+	public displayChance = new Observable<number>(0.1);
+
+	/**
+	 * Seconds the character spends noticing/orienting toward a viewer before it
+	 * begins walking over — the "it just spotted you and looked up" beat.
+	 * @zui
+	 * @zdefault 0.6
+	 */
+	public noticeDuration = new Observable<number>(0.6);
+
 	// ─── Private state ───────────────────────────────────────────────
 
 	private _state: AnimationState = "notEngaged";
 	private _hasGreeted = false;
 	private _isTurning = false;
+	private _isSpeaking = false;
 
 	private _homePosition = new Vector3();
 	private _camera: Object3D | null = null;
@@ -150,23 +185,60 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _boundOnInterrupt: ((data: InterruptData) => void) | null = null;
 	private _boundOnSttResponse: ((payload: { text: string; isFinal: boolean }) => void) | null = null;
 
+	// ─── Animation / crossfade ───────────────────────────────────────
+
+	// Maps semantic behaviours to the actual scene animation layer+clip names.
+	// (These come straight from Scene.zcomp.d.ts — note the irregular layer
+	//  names like "Peacock_A15_" for the preen clip.)
+	//   display = full tail spread (rare, deliberate "showing off")
+	//   shake   = quick feather ruffle/shake (common little comfort beat)
+	private static readonly _ANIM: Record<AnimKey, { layer: string; clip: string }> = {
+		walk:    { layer: "Peacock_A15_Walk",             clip: "Peacock_A15_Walk" },
+		idle:    { layer: "Peacock_A15_Idle",             clip: "Peacock_A15_Idle" },
+		preen:   { layer: "Peacock_A15_",                 clip: "Peacock_A15_licking_feathers" },
+		shake:   { layer: "Peacock_A15_Spread_feathers2", clip: "Peacock_A15_Spread_feathers2" },
+		display: { layer: "Peacock_A15_Spread_feathers",  clip: "Peacock_A15_Spreadfeathers" },
+	};
+
+	private _currentAnimKey: AnimKey | null = null;
+	private _playingClips: any[] = [];
+	private _crossfadeStopTimer: ReturnType<typeof setTimeout> | null = null;
+
+	// Natural clip durations (seconds) — used to schedule one-shot follow-ups.
+	private readonly _PREEN_DURATION_S = 3.0;
+	private readonly _SHAKE_DURATION_S = 1.6;
+	private readonly _DISPLAY_DURATION_S = 4.0;
+
 	// ─── isConversating state ────────────────────────────────────────
 
 	private _convAnimTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly _CONVERSATING_IDLE_DURATION_S = 3.0;
 
-	// ─── Patrol state ────────────────────────────────────────────────
+	// ─── Locomotion (eased velocity — keeps starts/stops from being robotic) ──
 
-	// Update these to match the actual clip lengths in your scene
-	private readonly _LICKING_FEATHERS_DURATION_S = 3.0;
-	private readonly _SPREAD_FEATHERS_DURATION_S = 4.0;
+	private _speed = 0;                       // current ground speed, m/s (eased)
+	private readonly _ACCEL = 2.4;            // m/s² ramp toward target speed
+	private readonly _ARRIVE_DIST = 0.08;     // m — close enough to count as arrived
+	private readonly _ARRIVE_DECEL_K = 2.6;   // higher = brakes later/harder near target
+
+	// ─── Wander / forage state ───────────────────────────────────────
 
 	private _patrolWaypoint = new Vector3();
-	private _patrolIsPaused = false;
-	private _patrolPauseTimer: ReturnType<typeof setTimeout> | null = null;
-	private _patrolIntervalTimer: ReturnType<typeof setTimeout> | null = null;
-	private _patrolFallbackIdleTimer: ReturnType<typeof setTimeout> | null = null;
-	private _patrolAnimState: "walk" | "pausing" | "none" = "none";
+	private _wanderSub: "stroll" | "settle" = "settle";
+	private _strollSpeedFactor = 1;           // small per-stroll speed variation
+	private _patrolPauseTimer: ReturnType<typeof setTimeout> | null = null;       // settle end
+	private _patrolIntervalTimer: ReturnType<typeof setTimeout> | null = null;    // reserved
+	private _patrolFallbackIdleTimer: ReturnType<typeof setTimeout> | null = null;// settle tail
+	private _patrolAnimState: string = "none";
+
+	// Gentle idle look-around so the bird is never frozen while settled.
+	private _lookPoint = new Vector3();
+	private _hasLookPoint = false;
+	private _nextLookTime = 0;
+
+	// Approach "notice" beat — orient before walking over.
+	private _approachNoticeUntil = 0;
+	private _greetOnArrival = true;
 
 	// ─── Reusable temporaries ────────────────────────────────────────
 
@@ -213,6 +285,9 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		if (constructorProps.conversatingTimeout !== undefined) this.conversatingTimeout.value = constructorProps.conversatingTimeout;
 		if (constructorProps.turnSpeed !== undefined) this.turnSpeed.value = constructorProps.turnSpeed;
 		if (constructorProps.openingLine !== undefined) this.openingLine.value = constructorProps.openingLine;
+		if (constructorProps.crossfadeTime !== undefined) this.crossfadeTime.value = constructorProps.crossfadeTime;
+		if (constructorProps.displayChance !== undefined) this.displayChance.value = constructorProps.displayChance;
+		if (constructorProps.noticeDuration !== undefined) this.noticeDuration.value = constructorProps.noticeDuration;
 
 		started(this.contextManager).then(() => {
 			this._initialize();
@@ -294,37 +369,54 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	// ─── Animation helpers ───────────────────────────────────────────
 
 	/**
-	 * Plays an animation clip by searching the root scene animation and then all
-	 * behaviors on Peacock_glb. Records which path succeeded in _debugLastAnimPath.
+	 * Crossfades to a semantic animation behaviour. Because every clip lives on
+	 * its own layer, switching is a blend: the target fades in over `crossfadeTime`
+	 * while the outgoing clip(s) keep playing, then are stopped once the blend has
+	 * completed — so transitions read as a smooth dissolve rather than a hard cut.
+	 *
+	 * @param key   which behaviour to play
+	 * @param loop  whether it should loop (locomotion/idle yes; one-shots no)
+	 * @param speed playback timeScale (e.g. a slow walk while turning in place)
+	 * @param force replay even if it's already the current looping animation
 	 */
-	private _play(layerName: string, clipName: string, loop = false): void {
-		// Try the root scene's top-level animation first
-		const sceneClip = (this._rootScene as any)?.animation?.layers?.[layerName]?.clips?.[clipName];
-		if (sceneClip) {
-			sceneClip.play({ loop });
-			this._debugLastAnimPath = `scene.${layerName}.${clipName}`;
+	private _setAnim(key: AnimKey, opts: { loop?: boolean; speed?: number; force?: boolean } = {}): void {
+		const loop = opts.loop ?? false;
+		// Don't restart a looping animation that's already current — that would
+		// snap it back to frame 0 every call and kill the looping motion.
+		if (!opts.force && loop && key === this._currentAnimKey) return;
+
+		const { layer, clip: clipName } = SampleCharacterAnimator._ANIM[key];
+		const clip = this._getClip(layer, clipName);
+		if (!clip) {
+			this._debugLastAnimPath = `NOT FOUND: ${layer}.${clipName}`;
 			return;
 		}
-		// Search all animation behaviors on the Peacock_glb node
-		const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
-		if (behaviors) {
-			for (const key of Object.keys(behaviors)) {
-				const clip = behaviors[key]?.layers?.[layerName]?.clips?.[clipName];
-				if (clip) {
-					clip.play({ loop });
-					this._debugLastAnimPath = `Peacock_glb.behaviors.${key} → ${layerName}`;
-					return;
-				}
-			}
+
+		const fadeTime = Math.max(0, this.crossfadeTime.value);
+		clip.timeScale = opts.speed ?? 1;
+		clip.play({ loop, fade: fadeTime > 0 ? { time: fadeTime } : undefined });
+		this._debugLastAnimPath = `${key} → ${layer}`;
+		this._currentAnimKey = key;
+
+		// Stop everything that was playing before this clip, after the crossfade
+		// window — letting the blend finish first so the swap is invisible.
+		const outgoing = this._playingClips.filter(c => c !== clip);
+		this._playingClips = [clip];
+		if (outgoing.length > 0) {
+			if (this._crossfadeStopTimer !== null) clearTimeout(this._crossfadeStopTimer);
+			this._crossfadeStopTimer = setTimeout(() => {
+				this._crossfadeStopTimer = null;
+				for (const c of outgoing) { try { c.stop(); } catch { /* already gone */ } }
+			}, fadeTime * 1000);
 		}
-		this._debugLastAnimPath = `NOT FOUND: ${layerName}`;
 	}
 
 	/**
 	 * Smoothly rotates obj to face targetPos (in the same coordinate space that lookAt expects)
 	 * using an exponential slerp. Call every frame for natural arc turns.
+	 * Pass `speed` to override the default turn rate (e.g. a slow idle head-turn).
 	 */
-	private _smoothTurnToward(obj: Object3D, targetWorldPos: Vector3, dt: number): void {
+	private _smoothTurnToward(obj: Object3D, targetWorldPos: Vector3, dt: number, speed = this.turnSpeed.value): void {
 		this._tmpQuat.copy(obj.quaternion);
 		obj.lookAt(targetWorldPos);
 		// Guard: lookAt produces NaN when target == object world position; keep current rotation.
@@ -334,8 +426,52 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 		this._targetQuat.copy(obj.quaternion);
 		obj.quaternion.copy(this._tmpQuat);
-		const t = 1 - Math.exp(-this.turnSpeed.value * dt);
+		const t = 1 - Math.exp(-speed * dt);
 		obj.quaternion.slerp(this._targetQuat, t);
+	}
+
+	/**
+	 * Eased step directly toward a local-space target on the XZ plane. Returns the
+	 * pre-step horizontal distance to the target.
+	 *
+	 * Crucially this still steps *straight at* the target every frame (so distance
+	 * strictly decreases and the path always converges — no pure-pursuit orbiting);
+	 * only the *speed* is eased. `_speed` ramps up from a standstill and eases back
+	 * down as the target nears, so starts and stops feel like a real animal rather
+	 * than a constant-velocity slide.
+	 */
+	private _moveTowardLocalXZ(obj: Object3D, targetX: number, targetZ: number, dt: number, maxSpeed: number): number {
+		// Refuse to move toward a non-finite target. This happens when the target was
+		// derived via obj.parent.worldToLocal() while the ImmersalAnchorGroup parent is
+		// momentarily degenerate/non-invertible (e.g. before the first VPS lock), which
+		// yields NaN. Stepping anyway would permanently poison obj.position with NaN
+		// (NaN + x === NaN forever), hiding the character for good. Stay put instead.
+		if (!Number.isFinite(targetX) || !Number.isFinite(targetZ)) { this._speed = 0; return Infinity; }
+
+		// Self-heal if position was already poisoned on an earlier frame: snap back to
+		// the known-good home position rather than staying invisible.
+		if (!Number.isFinite(obj.position.x) || !Number.isFinite(obj.position.z)) {
+			obj.position.x = this._homePosition.x;
+			obj.position.z = this._homePosition.z;
+			this._speed = 0;
+		}
+
+		const dx = targetX - obj.position.x;
+		const dz = targetZ - obj.position.z;
+		const dist = Math.sqrt(dx * dx + dz * dz);
+		if (dist < 1e-5) { this._speed = 0; return dist; }
+
+		// Ease the target speed down close to the goal so it glides to a stop.
+		const desired = Math.min(maxSpeed, dist * this._ARRIVE_DECEL_K);
+		// Ramp current speed toward desired (symmetric accel/decel).
+		const ds = this._ACCEL * dt;
+		if (this._speed < desired) this._speed = Math.min(desired, this._speed + ds);
+		else this._speed = Math.max(desired, this._speed - ds);
+
+		const step = Math.min(this._speed * dt, dist);
+		obj.position.x += (dx / dist) * step;
+		obj.position.z += (dz / dist) * step;
+		return dist;
 	}
 
 	/** Returns the raw clip object for timeScale manipulation, or null if not found. */
@@ -377,19 +513,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					const dx = this._tmpVec.x - charX, dz = this._tmpVec.z - charZ;
 					const r = this.proximityRadius.value;
 					if (dx * dx + dz * dz < r * r) {
-						this._enterApproaching();
+						this._enterApproaching(true);
 						break;
 					}
 				}
 
-				// Patrol movement
 				if (!this.patrolBoundaryParent.value) break;
 
-				if (!this._patrolIsPaused) {
-					if (this._patrolAnimState !== "walk") {
-						this._patrolAnimState = "walk";
-						this._play("Peacock_A15_Walk", "Peacock_A15_Walk", true);
-					}
+				if (this._wanderSub === "stroll") {
 					// _patrolWaypoint is fixed in WORLD space (the boundary markers don't move),
 					// but obj.parent (ImmersalAnchorGroup's tracker group) has its pose recomputed
 					// from the live VPS/world-tracking anchor every frame — so re-derive the
@@ -397,30 +528,22 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					this._tmpVec2.copy(this._patrolWaypoint);
 					if (obj.parent) obj.parent.worldToLocal(this._tmpVec2);
 
-					const dx = this._tmpVec2.x - obj.position.x;
-					const dz = this._tmpVec2.z - obj.position.z;
-					const dist = Math.sqrt(dx * dx + dz * dz);
-					if (dist > 0.05) {
-						// Always step directly toward the target — this guarantees the distance
-						// shrinks every frame regardless of how quickly the heading catches up.
-						// (The "walk in current facing direction" approach tried previously is a
-						// pursuit-style algorithm: if turnSpeed can't keep up with walkSpeed, the
-						// character can orbit/spiral outward and never converge — which is exactly
-						// what sent it off outside the patrol boundary.)
-						const step = Math.min(this.walkSpeed.value * dt, dist);
-						obj.position.x += (dx / dist) * step;
-						obj.position.z += (dz / dist) * step;
+					// Eased step *straight at* the target (distance always converges — never
+					// a pure-pursuit orbit); only the speed accelerates/decelerates.
+					const dist = this._moveTowardLocalXZ(
+						obj, this._tmpVec2.x, this._tmpVec2.z, dt,
+						this.walkSpeed.value * this._strollSpeedFactor);
 
-						// Smoothly rotate to face the direction of travel — lookAt expects world
-						// space, so use the fixed world-space waypoint at the character's current
-						// world height (horizontal look). This still gives a natural turning
-						// appearance without making the walked path itself depend on the turn.
-						obj.getWorldPosition(this._tmpVec);
-						this._tmpVec.set(this._patrolWaypoint.x, this._tmpVec.y, this._patrolWaypoint.z);
-						this._smoothTurnToward(obj, this._tmpVec, dt);
-					} else {
-						this._pickNextPatrolWaypoint();
-					}
+					// Face the direction of travel. lookAt wants world space, so aim at the
+					// fixed world-space waypoint at the bird's current height (horizontal look).
+					obj.getWorldPosition(this._tmpVec);
+					this._tmpVec.set(this._patrolWaypoint.x, this._tmpVec.y, this._patrolWaypoint.z);
+					this._smoothTurnToward(obj, this._tmpVec, dt);
+
+					if (dist <= this._ARRIVE_DIST) this._beginSettle();
+				} else {
+					// Settled in place — gentle idle look-around so it's never frozen.
+					this._idleLookAround(obj, time, dt);
 				}
 				break;
 			}
@@ -444,27 +567,30 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					const abandonDist = this.proximityRadius.value * 1.5;
 					if (dist > abandonDist) {
 						this._logDebugEvent("viewer left — resuming patrol");
-						this._state = "notEngaged";
 						this._enterNotEngaged();
 						break;
 					}
 
-					// Arrived within greeting distance — trigger introduction
-					const greetDist = 1.0;
-					if (dist <= greetDist) {
-						this._enterConversating(true);
+					// "Notice" beat — it spotted you: hold position and orient (a touch
+					// faster than normal) toward you before actually walking over.
+					if (time < this._approachNoticeUntil) {
+						this._speed = 0;
+						this._smoothTurnToward(obj, this._tmpVec2, dt, this.turnSpeed.value * 1.6);
 						break;
 					}
 
-					// Walk toward the viewer (in local space), stopping greetDist short
-					if (dist > 0) {
-						const step = Math.min(this.walkSpeed.value * dt, dist - greetDist);
-						if (step > 0) {
-							obj.position.x += (dx / dist) * step;
-							obj.position.z += (dz / dist) * step;
-						}
+					// Arrived within greeting distance — settle and (maybe) greet
+					const greetDist = 1.0;
+					if (dist <= greetDist) {
+						this._enterConversating(this._greetOnArrival);
+						break;
 					}
-					// Rotate using world-space camera position (lookAt expects world space)
+
+					// Walk over (eased), aiming at a point greetDist short of the viewer so it
+					// glides to a stop at conversation distance rather than into their face.
+					this._setAnim("walk", { loop: true });
+					const f = (dist - greetDist) / dist;
+					this._moveTowardLocalXZ(obj, obj.position.x + dx * f, obj.position.z + dz * f, dt, this.walkSpeed.value);
 					this._smoothTurnToward(obj, this._tmpVec2, dt);
 				}
 				break;
@@ -489,17 +615,13 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					const TURN_OFF = 0.035; // ~2° — stop turning (hysteresis)
 
 					if (!this._isTurning && angularDist > TURN_ON) {
+						// Viewer moved enough that we must reorient — shuffle round with a
+						// slow in-place walk so the feet "sell" the turn instead of sliding.
 						this._isTurning = true;
 						this._clearConversatingTimers();
-						const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
-						if (walkClip) {
-							walkClip.timeScale = 0.4;
-							walkClip.play({ loop: true });
-						}
+						this._setAnim("walk", { loop: true, speed: 0.45 });
 					} else if (this._isTurning && angularDist < TURN_OFF) {
 						this._isTurning = false;
-						const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
-						if (walkClip) { walkClip.timeScale = 1.0; walkClip.stop(); }
 						this._pickConversatingAnim();
 					}
 
@@ -513,6 +635,30 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 	}
 
+	/**
+	 * Gentle idle "look around" while settled: every few seconds pick a new nearby
+	 * point to glance toward and slowly turn the body toward it. Keeps the bird
+	 * subtly alive (scanning/foraging head movement) instead of statue-still.
+	 */
+	private _idleLookAround(obj: Object3D, time: number, dt: number): void {
+		// Only steer the body during the looping idle — never mid preen/shake/display.
+		if (this._currentAnimKey !== "idle") return;
+		if (!this._hasLookPoint || time >= this._nextLookTime) {
+			obj.getWorldPosition(this._tmpVec);
+			const ang = Math.random() * Math.PI * 2;
+			// Bias glances roughly forward-ish but allow the occasional full turn.
+			this._lookPoint.set(
+				this._tmpVec.x + Math.cos(ang) * 2,
+				this._tmpVec.y,
+				this._tmpVec.z + Math.sin(ang) * 2,
+			);
+			this._hasLookPoint = true;
+			this._nextLookTime = time + MathUtils.randFloat(1.6, 3.6) * 1000;
+		}
+		// A slow, lazy turn rate — this is idle curiosity, not urgent reorientation.
+		this._smoothTurnToward(obj, this._lookPoint, dt, this.turnSpeed.value * 0.25);
+	}
+
 	// ─── Event handlers ──────────────────────────────────────────────
 
 	private _onCharacterAction(_action: CharacterAction): void {
@@ -521,6 +667,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _onAudioPlaybackStarted(): void {
 		this._logSdkEvent("audioPlaybackStarted");
+		this._isSpeaking = true;
 		// Cancel any running inactivity timer — the character cannot be idle while speaking.
 		// This is the hard guard: no matter what started the timer (interrupt, greet fallback,
 		// re-entry, etc.), audio playing always wins and clears it.
@@ -530,14 +677,24 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			this._logSdkEvent("  → timer CANCELLED");
 		}
 		if (this._state === "notEngaged" && this._hasGreeted) {
-			this._logDebugEvent("audio started → re-enter conversating");
-			this._enterConversating(false);
+			// Player spoke to it again while it had wandered off — re-engage by
+			// walking back over to them (no re-greeting), showing renewed attention.
+			this._logDebugEvent("audio started → re-approach viewer");
+			this._enterApproaching(false);
+		} else if (this._state === "isConversating" && this._currentAnimKey === "idle" && !this._isTurning) {
+			// Freshen the spoken animation now that it's actually talking — but only
+			// from a resting idle, so an in-progress greeting display/preen isn't cut.
+			this._clearConversatingTimers();
+			this._pickConversatingAnim();
 		}
 	}
 
 	private _onAudioPlaybackComplete(): void {
 		this._logSdkEvent("audioPlaybackComplete");
+		this._isSpeaking = false;
 		if (this._state === "isConversating") {
+			// Switch to the calmer "listening" palette and start the silence countdown.
+			if (!this._isTurning) this._pickConversatingAnim();
 			this._resetInactivityTimer("audioPlaybackComplete");
 		}
 	}
@@ -560,23 +717,27 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	// ─── isConversating helpers ──────────────────────────────────────
 
-	private _enterApproaching(): void {
+	private _enterApproaching(greetOnArrival: boolean): void {
 		this._clearPatrolTimers();
 		this._clearConversatingTimers();
 		this._isTurning = false;
+		this._speed = 0;
+		this._greetOnArrival = greetOnArrival;
 		this._state = "approaching";
 		this._patrolAnimState = "none";
-		this._play("Peacock_A15_Walk", "Peacock_A15_Walk", true);
-		this._logDebugEvent("→ approaching viewer");
+		// "Notice" beat first: stand alert and orient toward the viewer for a moment
+		// (idle pose) before committing to the walk — see the approaching case in _animate.
+		this._approachNoticeUntil = performance.now() + this.noticeDuration.value * 1000;
+		this._setAnim("idle", { loop: true });
+		this._logDebugEvent(greetOnArrival ? "→ noticing viewer" : "→ re-approaching viewer");
 	}
 
 	private _enterConversating(greet: boolean): void {
 		this._clearPatrolTimers();
 		this._clearConversatingTimers();
 		this._isTurning = false;
+		this._speed = 0;
 		this._state = "isConversating";
-		const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
-		if (walkClip) walkClip.stop();
 
 		if (greet) {
 			const line = this.openingLine.value.trim();
@@ -587,10 +748,20 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				console.log("SampleCharacterAnimator: Greeting viewer (no client/line)");
 				this._resetInactivityTimer("greet-no-client-fallback");
 			}
-			// Timer starts in _onAudioPlaybackComplete so the 7s counts down
+			// Timer starts in _onAudioPlaybackComplete so the silence counts down
 			// after speech finishes, not while it's still playing.
+
+			// A full tail-spread as a greeting flourish — the peacock showing off as
+			// it says hello. Otherwise settle straight into the attentive idle.
+			if (Math.random() < 0.55) {
+				this._setAnim("display", { loop: false });
+				this._queueNextConvAnim(this._DISPLAY_DURATION_S);
+			} else {
+				this._pickConversatingAnim();
+			}
+		} else {
+			this._pickConversatingAnim();
 		}
-		this._pickConversatingAnim();
 		this._logDebugEvent(`→ isConversating (greet=${greet})`);
 	}
 
@@ -602,41 +773,51 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._inactivityTimer = setTimeout(() => {
 			this._inactivityTimer = null;
 			if (this._state === "isConversating") {
-				this._hasGreeted = true;
-				this._clearConversatingTimers();
-				this._state = "notEngaged";
-				this._enterNotEngaged();
-				this._logDebugEvent("inactivity timeout → patrol");
-				this._logSdkEvent("timer FIRED → notEngaged");
+				this._logDebugEvent("inactivity timeout → disengage");
+				this._logSdkEvent("timer FIRED → disengage");
+				this._enterDisengage();
 			}
 		}, this.conversatingTimeout.value * 1000);
 	}
 
+	/**
+	 * Picks the next conversation animation. Distinguishes *speaking* (more
+	 * animated — expressive idle with the occasional feather-shake or full
+	 * display for emphasis) from *listening* (calmer — attentive idle with the
+	 * occasional patient preen). Tunable via the conversating* weight properties.
+	 */
 	private _pickConversatingAnim(): void {
-		const idleW   = Math.max(0, this.conversatingIdleWeight.value);
-		const lickW   = Math.max(0, this.conversatingLickingWeight.value);
-		const spreadW = Math.max(0, this.conversatingSpreadWeight.value);
-		const total = idleW + lickW + spreadW;
-		const roll = Math.random() * (total || 1);
+		const speaking = this._isSpeaking;
+		const idleW = Math.max(0, this.conversatingIdleWeight.value);
+		// Won't groom mid-sentence — preening is a calm listening-time comfort beat.
+		const preenW = Math.max(0, this.conversatingLickingWeight.value) * (speaking ? 0.1 : 1);
+		const expressW = Math.max(0, this.conversatingSpreadWeight.value);
+		// Split the "expressive" weight into a common little feather-shake and a
+		// rare, deliberate full display (gated further by displayChance).
+		const displayW = expressW * (speaking ? 0.5 : 0.2) * Math.max(0, Math.min(1, this.displayChance.value * 3));
+		const shakeW = Math.max(0, expressW - displayW);
 
-		let clipDuration: number;
-		if (roll < idleW || total === 0) {
-			this._play("Peacock_A15_Idle", "Peacock_A15_Idle");
-			clipDuration = this._CONVERSATING_IDLE_DURATION_S;
-		} else if (roll < idleW + lickW) {
-			this._play("Peacock_A15_lickingfeathers", "Peacock_A15_lickingfeathers");
-			clipDuration = this._LICKING_FEATHERS_DURATION_S;
-		} else {
-			this._play("Peacock_A15_SpreadFeathers2", "Peacock_A15_SpreadFeathers2");
-			clipDuration = this._SPREAD_FEATHERS_DURATION_S;
-		}
+		const total = idleW + preenW + shakeW + displayW;
+		let roll = Math.random() * (total || 1);
 
+		let key: AnimKey; let dur: number;
+		if (total === 0 || (roll -= idleW) < 0)      { key = "idle";    dur = this._CONVERSATING_IDLE_DURATION_S; }
+		else if ((roll -= preenW) < 0)               { key = "preen";   dur = this._PREEN_DURATION_S; }
+		else if ((roll -= shakeW) < 0)               { key = "shake";   dur = this._SHAKE_DURATION_S; }
+		else                                         { key = "display"; dur = this._DISPLAY_DURATION_S; }
+
+		const loop = key === "idle";
+		this._setAnim(key, { loop });
+		// Hold a looping idle for a varied stretch; re-pick one-shots when they finish.
+		this._queueNextConvAnim(loop ? MathUtils.randFloat(dur, dur * 1.9) : dur);
+	}
+
+	/** Schedules the next conversation-animation pick, unless turning/disengaged first. */
+	private _queueNextConvAnim(afterS: number): void {
 		this._convAnimTimer = setTimeout(() => {
 			this._convAnimTimer = null;
-			if (this._state === "isConversating" && !this._isTurning) {
-				this._pickConversatingAnim();
-			}
-		}, clipDuration * 1000);
+			if (this._state === "isConversating" && !this._isTurning) this._pickConversatingAnim();
+		}, afterS * 1000);
 	}
 
 	private _clearConversatingTimers(): void {
@@ -646,77 +827,136 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 	}
 
-	// ─── Patrol helpers ──────────────────────────────────────────────
+	// ─── Wander / forage helpers ─────────────────────────────────────
 
-	private _enterNotEngaged(): void {
+	private _enterNotEngaged(awayFromCamera = false): void {
 		this._clearPatrolTimers();
-		this._patrolIsPaused = false;
-		this._patrolAnimState = "none";
-		this._pickNextPatrolWaypoint();
-		this._startPatrolPauseInterval();
+		this._speed = 0;
+		this._hasLookPoint = false;
+		this._beginStroll(awayFromCamera);
 	}
 
-	private _pickNextPatrolWaypoint(): void {
+	/** Conversation faded out: break eye contact and amble off rather than snap to patrol. */
+	private _enterDisengage(): void {
+		this._hasGreeted = true;
+		this._clearConversatingTimers();
+		this._isTurning = false;
+		this._state = "notEngaged";
+		this._enterNotEngaged(true);
+	}
+
+	/** Begin walking toward a freshly chosen wander target. */
+	private _beginStroll(awayFromCamera = false): void {
+		this._clearPatrolTimers();
+		this._wanderSub = "stroll";
+		this._patrolAnimState = "stroll";
+		this._strollSpeedFactor = MathUtils.randFloat(0.8, 1.12); // subtle pace variation
+		this._pickWanderTarget(awayFromCamera);
+		this._setAnim("walk", { loop: true });
+	}
+
+	/**
+	 * Chooses the next wander destination (stored in WORLD space). Mixes frequent
+	 * short forage hops near the current spot with the occasional longer stroll, so
+	 * the path meanders like an animal pottering about rather than marching corner
+	 * to corner. When disengaging, biases the target away from the viewer.
+	 */
+	private _pickWanderTarget(awayFromCamera = false): void {
 		const verts = this._getPatrolBoundaryVertices();
 		if (!verts) return;
-		const pt = this._samplePointInPolygon(verts);
-		// Stored in WORLD space — see the comment in _animate's "notEngaged" patrol
-		// movement for why this must NOT be pre-converted to the character's
-		// parent-local space here. (y is unused downstream — _animate overrides it
-		// for the lookAt target and the distance/movement math only reads x/z — so
-		// it's left at 0 rather than mixing in a parent-local value.)
-		this._patrolWaypoint.set(pt.x, 0, pt.z);
+
+		const obj = this._obj;
+		obj.getWorldPosition(this._tmpVec);
+		const cx = this._tmpVec.x, cz = this._tmpVec.z;
+		let best: { x: number; z: number } | null = null;
+
+		if (awayFromCamera && this._camera) {
+			// Pick, among a few candidates, the one furthest from the viewer.
+			this._camera.getWorldPosition(this._tmpVec2);
+			let bestScore = -Infinity;
+			for (let i = 0; i < 6; i++) {
+				const c = this._samplePointInPolygon(verts);
+				const score = (c.x - this._tmpVec2.x) ** 2 + (c.z - this._tmpVec2.z) ** 2;
+				if (score > bestScore) { bestScore = score; best = c; }
+			}
+		} else if (Math.random() < 0.6) {
+			// Short forage hop: a nearby point that's still inside the boundary.
+			for (let i = 0; i < 8; i++) {
+				const ang = Math.random() * Math.PI * 2;
+				const r = MathUtils.randFloat(0.35, 1.3);
+				const px = cx + Math.cos(ang) * r, pz = cz + Math.sin(ang) * r;
+				if (this._pointInPolygon(verts, px, pz)) { best = { x: px, z: pz }; break; }
+			}
+		}
+		if (!best) best = this._samplePointInPolygon(verts); // longer stroll / fallback
+
+		// WORLD space — must NOT be pre-converted to parent-local here; _animate does
+		// that fresh each frame against the live VPS anchor pose. (y unused downstream.)
+		this._patrolWaypoint.set(best.x, 0, best.z);
 	}
 
-	private _startPatrolPauseInterval(): void {
-		const interval = MathUtils.randFloat(this.minPauseInterval.value, this.maxPauseInterval.value);
-		this._patrolIntervalTimer = setTimeout(() => {
-			this._patrolIntervalTimer = null;
-			this._beginPatrolPause();
-		}, interval * 1000);
-	}
+	/**
+	 * Arrived at a wander target: pause and do a small, motivated behaviour — usually
+	 * stand and scan, sometimes preen, a quick feather-shake, or (rarely) a full
+	 * display — then move on. Occasionally skips the pause to keep foraging.
+	 */
+	private _beginSettle(): void {
+		this._clearPatrolTimers();
+		this._wanderSub = "settle";
+		this._patrolAnimState = "settle";
+		this._hasLookPoint = false;
 
-	private _beginPatrolPause(): void {
-		this._patrolIsPaused = true;
-		this._patrolAnimState = "pausing";
-		const walkClip = this._getClip("Peacock_A15_Walk", "Peacock_A15_Walk");
-		if (walkClip) walkClip.stop();
+		// Sometimes don't really stop — a foraging bird takes a few steps, then a few
+		// more. Decide this before braking so the gait keeps its momentum.
+		if (Math.random() < 0.22) { this._beginStroll(); return; }
+		this._speed = 0;
 
-		const duration = MathUtils.randFloat(this.minPauseDuration.value, this.maxPauseDuration.value);
+		const settleDuration = MathUtils.randFloat(this.minPauseDuration.value, this.maxPauseDuration.value);
 		this._patrolPauseTimer = setTimeout(() => {
 			this._patrolPauseTimer = null;
-			this._endPatrolPause();
-		}, duration * 1000);
+			this._beginStroll();
+		}, settleDuration * 1000);
 
-		const roll = Math.floor(Math.random() * 3);
-		if (roll === 0) {
-			this._play("Peacock_A15_Idle", "Peacock_A15_Idle");
+		const roll = Math.random();
+		const dc = this.displayChance.value;
+		if (roll < dc) {
+			// Rare spontaneous full display.
+			this._setAnim("display", { loop: false });
+			this._settleReturnToIdleAfter(this._DISPLAY_DURATION_S, settleDuration, false);
+		} else if (roll < dc + 0.3) {
+			// Preen — relaxed grooming — finished off with a little feather-shake.
+			this._setAnim("preen", { loop: false });
+			this._settleReturnToIdleAfter(this._PREEN_DURATION_S, settleDuration, true);
+		} else if (roll < dc + 0.45) {
+			// Quick feather-shake/ruffle.
+			this._setAnim("shake", { loop: false });
+			this._settleReturnToIdleAfter(this._SHAKE_DURATION_S, settleDuration, false);
 		} else {
-			const isLicking = roll === 1;
-			const clipDuration = isLicking ? this._LICKING_FEATHERS_DURATION_S : this._SPREAD_FEATHERS_DURATION_S;
-
-			if (isLicking) {
-				this._play("Peacock_A15_lickingfeathers", "Peacock_A15_lickingfeathers");
-			} else {
-				this._play("Peacock_A15_SpreadFeathers2", "Peacock_A15_SpreadFeathers2");
-			}
-
-			if (duration > clipDuration) {
-				this._patrolFallbackIdleTimer = setTimeout(() => {
-					this._patrolFallbackIdleTimer = null;
-					if (this._patrolIsPaused) {
-						this._play("Peacock_A15_Idle", "Peacock_A15_Idle");
-					}
-				}, clipDuration * 1000);
-			}
+			// Just stand and scan (look-around is applied in _animate while idle).
+			this._setAnim("idle", { loop: true });
 		}
 	}
 
-	private _endPatrolPause(): void {
-		this._patrolIsPaused = false;
-		this._patrolAnimState = "none";
-		this._pickNextPatrolWaypoint();
-		this._startPatrolPauseInterval();
+	/**
+	 * After a one-shot settle behaviour finishes, return to the looping idle (so it
+	 * doesn't freeze on the clip's last frame) — optionally with a finishing
+	 * feather-shake. No-ops if the settle is already ending around then.
+	 */
+	private _settleReturnToIdleAfter(clipDurationS: number, settleDurationS: number, withShake: boolean): void {
+		if (settleDurationS <= clipDurationS + 0.15) return; // settle ends ~when the clip does
+		this._patrolFallbackIdleTimer = setTimeout(() => {
+			this._patrolFallbackIdleTimer = null;
+			if (this._wanderSub !== "settle") return;
+			if (withShake && settleDurationS > clipDurationS + this._SHAKE_DURATION_S + 0.15 && Math.random() < 0.6) {
+				this._setAnim("shake", { loop: false });
+				this._patrolFallbackIdleTimer = setTimeout(() => {
+					this._patrolFallbackIdleTimer = null;
+					if (this._wanderSub === "settle") this._setAnim("idle", { loop: true });
+				}, this._SHAKE_DURATION_S * 1000);
+			} else {
+				this._setAnim("idle", { loop: true });
+			}
+		}, clipDurationS * 1000);
 	}
 
 	private _clearPatrolTimers(): void {
@@ -756,6 +996,19 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			child.getWorldPosition(this._tmpVec);
 			return { x: this._tmpVec.x, z: this._tmpVec.z };
 		});
+	}
+
+	/** Even-odd ray-cast test: is world-XZ point (px,pz) inside the boundary polygon? */
+	private _pointInPolygon(verts: Array<{ x: number; z: number }>, px: number, pz: number): boolean {
+		let inside = false;
+		for (let i = 0, j = verts.length - 1; i < verts.length; j = i++) {
+			const xi = verts[i].x, zi = verts[i].z;
+			const xj = verts[j].x, zj = verts[j].z;
+			if (((zi > pz) !== (zj > pz)) && (px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi)) {
+				inside = !inside;
+			}
+		}
+		return inside;
 	}
 
 	/** Samples a uniformly random point inside a simple (convex or concave) polygon. */
@@ -1136,6 +1389,10 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 		this._clearConversatingTimers();
 		this._clearPatrolTimers();
+		if (this._crossfadeStopTimer !== null) {
+			clearTimeout(this._crossfadeStopTimer);
+			this._crossfadeStopTimer = null;
+		}
 		if (this._clientPollInterval !== null) {
 			clearInterval(this._clientPollInterval);
 			this._clientPollInterval = null;
