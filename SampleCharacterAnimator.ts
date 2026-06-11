@@ -120,7 +120,10 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	public conversatingTimeout = new Observable<number>(7.0);
 
 	/**
-	 * Rotation speed when turning to face the viewer
+	 * Turn rate (rad/s). Caps how fast the heading arcs toward a walk target — lower =
+	 * wider, lazier walking turns; higher = tighter, snappier ones. Also the rate used
+	 * for in-place reorientation (idle look-around, the approach "notice" beat, facing
+	 * the viewer in conversation).
 	 * @zui
 	 * @zdefault 3.0
 	 */
@@ -219,6 +222,31 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private readonly _ACCEL = 2.4;            // m/s² ramp toward target speed
 	private readonly _ARRIVE_DIST = 0.08;     // m — close enough to count as arrived
 	private readonly _ARRIVE_DECEL_K = 2.6;   // higher = brakes later/harder near target
+
+	// ─── Heading (the bird walks *along* its facing, never diagonally) ──────────
+	// Single source of truth for the ground heading. Movement and facing are both
+	// derived from this every frame, so the direction it travels is always the
+	// direction it faces. The heading is steered toward the target at a capped yaw
+	// rate (turnSpeed, rad/s), producing a forward walking *arc* instead of the body
+	// snapping its travel vector to the target while the mesh lags behind.
+	private _headingYaw = 0;                   // radians, parent-local XZ (atan2(x, z))
+	private _headingValid = false;             // false ⇒ re-seed from current facing first
+	// Yaw is driven through an eased *rate* rather than a flat capped step, so turns
+	// accelerate from a standstill (ease-in) and slow as they line up (ease-out) — an
+	// S-curve sweep instead of a robotic constant-speed pan. `_turnRateScale` gives each
+	// maneuver a slightly different briskness so no two turns look identical.
+	private _yawRate = 0;                       // current yaw angular velocity (rad/s), eased
+	private _turnRateScale = 1;                 // per-maneuver variance on the max turn rate
+	private readonly _YAW_ACCEL = 11;          // rad/s² — how fast the yaw rate ramps (ease-in)
+	private readonly _TURN_KP = 4.5;           // desired-rate gain vs. heading error (ease-out)
+	// Forward speed is scaled by how well the heading is aligned with the target
+	// (cos of the heading error). This floor keeps it creeping forward — arcing —
+	// through even a 180° turn rather than pivoting in place, and by slowing hard
+	// turns it shrinks the turn radius so a sharp target can never become an orbit.
+	private readonly _STEER_SPEED_FLOOR = 0.35;
+	// Debug readouts (shown in the Locomotion overlay section).
+	private _debugHeadingErrDeg = 0;
+	private _debugAlign = 1;
 
 	// ─── Wander / forage state ───────────────────────────────────────
 
@@ -454,6 +482,12 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 * Smoothly rotates obj to face targetPos (in the same coordinate space that lookAt expects)
 	 * using an exponential slerp. Call every frame for natural arc turns.
 	 * Pass `speed` to override the default turn rate (e.g. a slow idle head-turn).
+	 *
+	 * This is for *stationary* reorientation (idle look-around, the approach "notice"
+	 * beat) where the body turns in place. Because it rotates the mesh by a route the
+	 * heading integrator doesn't know about, it invalidates `_headingYaw` so the next
+	 * locomotion step re-seeds from wherever the body actually ended up — otherwise the
+	 * walk would start with a jump from the stale heading to the real facing.
 	 */
 	private _smoothTurnToward(obj: Object3D, targetWorldPos: Vector3, dt: number, speed = this.turnSpeed.value): void {
 		this._tmpQuat.copy(obj.quaternion);
@@ -467,19 +501,45 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		obj.quaternion.copy(this._tmpQuat);
 		const t = 1 - Math.exp(-speed * dt);
 		obj.quaternion.slerp(this._targetQuat, t);
+		this._headingValid = false;
 	}
 
 	/**
-	 * Eased step directly toward a local-space target on the XZ plane. Returns the
-	 * pre-step horizontal distance to the target.
-	 *
-	 * Crucially this still steps *straight at* the target every frame (so distance
-	 * strictly decreases and the path always converges — no pure-pursuit orbiting);
-	 * only the *speed* is eased. `_speed` ramps up from a standstill and eases back
-	 * down as the target nears, so starts and stops feel like a real animal rather
-	 * than a constant-velocity slide.
+	 * Seeds `_headingYaw` from the bird's *current* facing so a walk continues smoothly
+	 * from wherever the mesh is pointing. Reads the object's world forward (+Z, which is
+	 * the axis lookAt aims at the target — so "forward" here is the same "forward" the
+	 * rest of the code means) and expresses it as a yaw in parent-local XZ.
 	 */
-	private _moveTowardLocalXZ(obj: Object3D, targetX: number, targetZ: number, dt: number, maxSpeed: number): number {
+	private _seedHeadingFromFacing(obj: Object3D): void {
+		obj.getWorldDirection(this._tmpVec);   // world-space forward (unit)
+		obj.getWorldPosition(this._tmpVec2);   // world-space position
+		this._tmpVec.add(this._tmpVec2);       // a point one unit ahead, world space
+		if (obj.parent) {
+			obj.parent.worldToLocal(this._tmpVec);   // ahead point  → parent-local
+			obj.parent.worldToLocal(this._tmpVec2);  // position     → parent-local (≈ obj.position)
+		}
+		const fx = this._tmpVec.x - this._tmpVec2.x;
+		const fz = this._tmpVec.z - this._tmpVec2.z;
+		if (Number.isFinite(fx) && Number.isFinite(fz) && (fx * fx + fz * fz) > 1e-8) {
+			this._headingYaw = Math.atan2(fx, fz);
+			this._headingValid = true;
+			this._yawRate = 0; // fresh turn eases in from rest
+		}
+	}
+
+	/**
+	 * Coupled steer-and-move toward a local-space XZ target. The bird walks *along its
+	 * heading* (so it never glides diagonally), and the heading is rotated toward the
+	 * target at a capped yaw rate (`turnSpeed`, rad/s) — a forward walking arc, not a
+	 * snap. Returns the pre-step horizontal distance to the target.
+	 *
+	 * Anti-orbit: forward speed is scaled by heading alignment (cos of the error) and
+	 * eased down near the goal, so a sharp required turn slows the bird and tightens its
+	 * arc instead of letting it circle a target it can't turn fast enough to reach. The
+	 * `_STEER_SPEED_FLOOR` keeps it creeping forward through a full U-turn rather than
+	 * pivoting in place.
+	 */
+	private _steerAndMove(obj: Object3D, targetX: number, targetZ: number, dt: number, maxSpeed: number): number {
 		// Refuse to move toward a non-finite target. This happens when the target was
 		// derived via obj.parent.worldToLocal() while the ImmersalAnchorGroup parent is
 		// momentarily degenerate/non-invertible (e.g. before the first VPS lock), which
@@ -493,24 +553,68 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			obj.position.x = this._homePosition.x;
 			obj.position.z = this._homePosition.z;
 			this._speed = 0;
+			this._headingValid = false;
 		}
+
+		if (!this._headingValid) this._seedHeadingFromFacing(obj);
 
 		const dx = targetX - obj.position.x;
 		const dz = targetZ - obj.position.z;
 		const dist = Math.sqrt(dx * dx + dz * dz);
 		if (dist < 1e-5) { this._speed = 0; return dist; }
 
-		// Ease the target speed down close to the goal so it glides to a stop.
-		const desired = Math.min(maxSpeed, dist * this._ARRIVE_DECEL_K);
-		// Ramp current speed toward desired (symmetric accel/decel).
+		// Heading error toward the target bearing, wrapped to [-π, π].
+		const bearing = Math.atan2(dx, dz);
+		let err = bearing - this._headingYaw;
+		err = Math.atan2(Math.sin(err), Math.cos(err));
+
+		// Turn the heading toward the target with an *eased* yaw rate (→ an S-curve arc,
+		// not a flat constant-speed pan). Desired rate is proportional to the heading
+		// error so it eases out as the bird lines up, capped at turnSpeed with a small
+		// per-maneuver variance; the actual rate ramps toward it (angular accel) so the
+		// turn also eases in from rest.
+		const maxRate = this.turnSpeed.value * this._turnRateScale;
+		const desiredRate = Math.max(-maxRate, Math.min(maxRate, err * this._TURN_KP));
+		const dRate = this._YAW_ACCEL * dt;
+		this._yawRate += Math.max(-dRate, Math.min(dRate, desiredRate - this._yawRate));
+		let dYaw = this._yawRate * dt;
+		if (Math.abs(dYaw) >= Math.abs(err)) { dYaw = err; this._yawRate = desiredRate; } // don't overshoot
+		this._headingYaw += dYaw;
+
+		// Forward speed: ease toward the goal AND slow for sharp turns (alignment gate,
+		// floored so a U-turn still arcs forward instead of pivoting).
+		const align = Math.max(this._STEER_SPEED_FLOOR, Math.cos(err));
+		const desired = Math.min(maxSpeed, dist * this._ARRIVE_DECEL_K) * align;
 		const ds = this._ACCEL * dt;
 		if (this._speed < desired) this._speed = Math.min(desired, this._speed + ds);
 		else this._speed = Math.max(desired, this._speed - ds);
 
+		// Move along the heading (movement == facing, by construction). Don't overshoot
+		// the target on the (near-)aligned final step.
+		const hx = Math.sin(this._headingYaw), hz = Math.cos(this._headingYaw);
 		const step = Math.min(this._speed * dt, dist);
-		obj.position.x += (dx / dist) * step;
-		obj.position.z += (dz / dist) * step;
+		obj.position.x += hx * step;
+		obj.position.z += hz * step;
+
+		// Face exactly along the heading: look at a point one unit ahead (world space).
+		this._tmpVec.set(obj.position.x + hx, obj.position.y, obj.position.z + hz);
+		if (obj.parent) obj.parent.localToWorld(this._tmpVec);
+		this._faceWorldPointInstant(obj, this._tmpVec);
+
+		this._debugHeadingErrDeg = err * 180 / Math.PI;
+		this._debugAlign = align;
 		return dist;
+	}
+
+	/**
+	 * Snap-orient obj to look at a world point (horizontal), with the lookAt NaN guard.
+	 * Used by the steer where the heading itself is already rate-limited, so the mesh
+	 * should match the heading exactly with no additional smoothing.
+	 */
+	private _faceWorldPointInstant(obj: Object3D, worldPoint: Vector3): void {
+		this._tmpQuat.copy(obj.quaternion);
+		obj.lookAt(worldPoint);
+		if (isNaN(obj.quaternion.x)) obj.quaternion.copy(this._tmpQuat);
 	}
 
 	/** Returns the raw clip object for timeScale manipulation, or null if not found. */
@@ -567,17 +671,12 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					this._tmpVec2.copy(this._patrolWaypoint);
 					if (obj.parent) obj.parent.worldToLocal(this._tmpVec2);
 
-					// Eased step *straight at* the target (distance always converges — never
-					// a pure-pursuit orbit); only the speed accelerates/decelerates.
-					const dist = this._moveTowardLocalXZ(
+					// Coupled steer: walks *along its heading* and arcs that heading toward
+					// the waypoint, so movement and facing are always the same direction
+					// (no diagonal gliding) and it never pure-pursuit orbits.
+					const dist = this._steerAndMove(
 						obj, this._tmpVec2.x, this._tmpVec2.z, dt,
 						this.walkSpeed.value * this._strollSpeedFactor);
-
-					// Face the direction of travel. lookAt wants world space, so aim at the
-					// fixed world-space waypoint at the bird's current height (horizontal look).
-					obj.getWorldPosition(this._tmpVec);
-					this._tmpVec.set(this._patrolWaypoint.x, this._tmpVec.y, this._patrolWaypoint.z);
-					this._smoothTurnToward(obj, this._tmpVec, dt);
 
 					if (dist <= this._ARRIVE_DIST) this._beginSettle();
 				} else {
@@ -625,12 +724,13 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 						break;
 					}
 
-					// Walk over (eased), aiming at a point greetDist short of the viewer so it
-					// glides to a stop at conversation distance rather than into their face.
+					// Walk over (coupled steer), aiming at a point greetDist short of the
+					// viewer so it glides to a stop at conversation distance rather than into
+					// their face. The notice beat just turned the body in place, so the steer
+					// re-seeds its heading from that facing before stepping.
 					this._setAnim("walk", { loop: true });
 					const f = (dist - greetDist) / dist;
-					this._moveTowardLocalXZ(obj, obj.position.x + dx * f, obj.position.z + dz * f, dt, this.walkSpeed.value);
-					this._smoothTurnToward(obj, this._tmpVec2, dt);
+					this._steerAndMove(obj, obj.position.x + dx * f, obj.position.z + dz * f, dt, this.walkSpeed.value);
 				}
 				break;
 			}
@@ -667,6 +767,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					if (this._isTurning) {
 						const t = 1 - Math.exp(-this.turnSpeed.value * dt);
 						obj.quaternion.slerp(this._targetQuat, t);
+						this._headingValid = false; // body turned directly — re-seed before next walk
 					}
 				}
 				break;
@@ -903,6 +1004,9 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _pickWanderTarget(awayFromCamera = false): void {
 		const verts = this._getPatrolBoundaryVertices();
 		if (!verts) return;
+
+		// Give this leg's turns their own briskness so no two maneuvers sweep identically.
+		this._turnRateScale = MathUtils.randFloat(0.72, 1.3);
 
 		const obj = this._obj;
 		obj.getWorldPosition(this._tmpVec);
@@ -1227,10 +1331,11 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				].join(";");
 
 				for (const [name, defaultCollapsed] of [
-					["State",     false],
-					["Patrol",    true ],
-					["Animation", true ],
-					["Events",    false],
+					["State",      false],
+					["Patrol",     true ],
+					["Locomotion", true ],
+					["Animation",  true ],
+					["Events",     false],
 				] as Array<[string, boolean]>) {
 					const sectionEl  = document.createElement("div");
 					const headerEl   = document.createElement("div");
@@ -1353,6 +1458,19 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				`status:     ${this._debugBoundaryStatus}`,
 				`animState:  ${this._patrolAnimState}`,
 				`waypoint:   (${wp.x.toFixed(2)}, ${wp.z.toFixed(2)})`,
+			].join("<br>");
+		}
+
+		// ── Locomotion section ───────────────────────────────────────────
+		const locoEntry = this._debugSections.get("Locomotion");
+		if (locoEntry && !locoEntry.collapsed) {
+			locoEntry.contentEl.innerHTML = [
+				`heading:    ${(this._headingYaw * 180 / Math.PI).toFixed(0)}°  ${this._headingValid ? "" : "(re-seed)"}`,
+				`headingErr: ${this._debugHeadingErrDeg.toFixed(0)}°`,
+				`align:      ${this._debugAlign.toFixed(2)}  (floor ${this._STEER_SPEED_FLOOR})`,
+				`speed:      ${this._speed.toFixed(2)} m/s`,
+				`yawRate:    ${(this._yawRate * 180 / Math.PI).toFixed(0)}°/s`,
+				`turnCap:    ${(this.turnSpeed.value * this._turnRateScale).toFixed(1)} rad/s  (×${this._turnRateScale.toFixed(2)})`,
 			].join("<br>");
 		}
 

@@ -743,8 +743,8 @@
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
 			"proximityRadius": 1.2,
-			"turnSpeed": 1.5,
-			"walkSpeed": 0.8
+			"turnSpeed": 0.8,
+			"walkSpeed": 0.5
 		},
 		"root": {
 			"position": [
