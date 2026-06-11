@@ -11,11 +11,10 @@ import { ImmersalAnchorGroup as ImmersalAnchorGroup_7 } from "@zcomponent/immers
 import { GLTF as GLTF_8 } from "@zcomponent/three/lib/components/models/GLTF";
 import { SampleCharacterAnimator as SampleCharacterAnimator_9 } from "./SampleCharacterAnimator";
 import { FixGLTFMaterials as FixGLTFMaterials_10 } from "./FixGLTFMaterials";
-import { Animation as Animation_11 } from "@zcomponent/three/lib/behaviors/Animation";
-import { ShadowPlane as ShadowPlane_12 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
-import { WorldTracker as WorldTracker_13 } from "@zcomponent/zappar-three/lib/components/trackers/WorldTracker";
-import { WorldTrackingUI as WorldTrackingUI_14 } from "@zcomponent/zappar-three/lib/components/WorldTrackingUI";
-import { ZapparCamera as ZapparCamera_15 } from "@zcomponent/zappar-three/lib/components/cameras/Camera";
+import { ShadowPlane as ShadowPlane_11 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
+import { WorldTracker as WorldTracker_12 } from "@zcomponent/zappar-three/lib/components/trackers/WorldTracker";
+import { WorldTrackingUI as WorldTrackingUI_13 } from "@zcomponent/zappar-three/lib/components/WorldTrackingUI";
+import { ZapparCamera as ZapparCamera_14 } from "@zcomponent/zappar-three/lib/components/cameras/Camera";
 
 interface ConstructorProps {
 
@@ -81,34 +80,24 @@ declare class Comp extends ZComponent {
 				0: SampleCharacterAnimator_9,
 				1: FixGLTFMaterials_10,
 				FixGLTFMaterials: FixGLTFMaterials_10,
-				2: Animation_11,
-				Peacock_A15_Idle: Animation_11,
-				3: Animation_11,
-				Peacock_A15_licking_feathers: Animation_11,
-				4: Animation_11,
-				Peacock_A15_Spread_feathers: Animation_11,
-				5: Animation_11,
-				Peacock_A15_Spread_feathers2: Animation_11,
-				6: Animation_11,
-				Peacock_A15_Walk: Animation_11,
 			}
 		},
-		ShadowPlane: ShadowPlane_12 & {
+		ShadowPlane: ShadowPlane_11 & {
 			behaviors: {
 
 			}
 		},
-		WorldTracker: WorldTracker_13 & {
+		WorldTracker: WorldTracker_12 & {
 			behaviors: {
 
 			}
 		},
-		WorldTrackingUI: WorldTrackingUI_14 & {
+		WorldTrackingUI: WorldTrackingUI_13 & {
 			behaviors: {
 
 			}
 		},
-		ZapparCamera: ZapparCamera_15 & {
+		ZapparCamera: ZapparCamera_14 & {
 			behaviors: {
 
 			}

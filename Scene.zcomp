@@ -387,36 +387,6 @@
 			},
 			"type": "./FixGLTFMaterials#FixGLTFMaterials"
 		},
-		"59cfe4d0ab7948a59056fe6d8c1ff687": {
-			"id": "59cfe4d0ab7948a59056fe6d8c1ff687",
-			"label": "Peacock_A15_licking feathers",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a5",
-				"scriptName": "Peacock_A15_licking_feathers"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
-		},
-		"6c11c9904c874e32a3f36dba2f5da416": {
-			"id": "6c11c9904c874e32a3f36dba2f5da416",
-			"label": "Peacock_A15_Walk",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a8",
-				"scriptName": "Peacock_A15_Walk"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
-		},
-		"b94e4b79b4e04d23a7a9ed7819035cad": {
-			"id": "b94e4b79b4e04d23a7a9ed7819035cad",
-			"label": "Peacock_A15_Spread feathers2",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a7",
-				"scriptName": "Peacock_A15_Spread_feathers2"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
-		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
 			"id": "d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0",
 			"label": "SampleCharacterAnimator",
@@ -425,26 +395,6 @@
 				"order": "a0"
 			},
 			"type": "./SampleCharacterAnimator#SampleCharacterAnimator"
-		},
-		"e4ce62afa3194e789cc69abe8f09795b": {
-			"id": "e4ce62afa3194e789cc69abe8f09795b",
-			"label": "Peacock_A15_Spread feathers",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a6",
-				"scriptName": "Peacock_A15_Spread_feathers"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
-		},
-		"eb4efb7943b94693a99fb5102575b48f": {
-			"id": "eb4efb7943b94693a99fb5102575b48f",
-			"label": "Peacock_A15_Idle",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a4",
-				"scriptName": "Peacock_A15_Idle"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
 		}
 	},
 	"constructorProps": {
@@ -582,15 +532,8 @@
 		},
 		"52148d8eafe3426085e700e049662c07": {
 		},
-		"59cfe4d0ab7948a59056fe6d8c1ff687": {
-			"name": "Peacock_A15_licking feathers"
-		},
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
 			"source": "file://./3D Models/CHAR_Peacock.glb"
-		},
-		"6c11c9904c874e32a3f36dba2f5da416": {
-			"loop": "Repeat",
-			"name": "Peacock_A15_Walk"
 		},
 		"70c1c2f87a1e445c81b01db9d1d33c9f": {
 		},
@@ -616,9 +559,6 @@
 		"b2bed9100d304718a43e7caed392a228": {
 			"source": "file://./3D Models/marker.glb"
 		},
-		"b94e4b79b4e04d23a7a9ed7819035cad": {
-			"name": "Peacock_A15_Spread feathers2"
-		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"source": "file://./3D Models/marker.glb"
 		},
@@ -626,13 +566,6 @@
 			"activateAtStart": true
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
-		},
-		"e4ce62afa3194e789cc69abe8f09795b": {
-			"name": "Peacock_A15_Spread feathers"
-		},
-		"eb4efb7943b94693a99fb5102575b48f": {
-			"loop": "Repeat",
-			"name": "Peacock_A15_Idle"
 		}
 	},
 	"entityPropOverrides": {
@@ -734,8 +667,6 @@
 		},
 		"52148d8eafe3426085e700e049662c07": {
 		},
-		"59cfe4d0ab7948a59056fe6d8c1ff687": {
-		},
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
 			"enabled": true,
 			"position": [
@@ -754,8 +685,6 @@
 				1
 			],
 			"visible": true
-		},
-		"6c11c9904c874e32a3f36dba2f5da416": {
 		},
 		"70c1c2f87a1e445c81b01db9d1d33c9f": {
 		},
@@ -799,8 +728,6 @@
 				0.997723023658684
 			]
 		},
-		"b94e4b79b4e04d23a7a9ed7819035cad": {
-		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"position": [
 				-2.2146621049101767,
@@ -815,11 +742,9 @@
 			"conversatingTimeout": 8,
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
-			"proximityRadius": 1.2
-		},
-		"e4ce62afa3194e789cc69abe8f09795b": {
-		},
-		"eb4efb7943b94693a99fb5102575b48f": {
+			"proximityRadius": 1.2,
+			"turnSpeed": 1.5,
+			"walkSpeed": 0.8
 		},
 		"root": {
 			"position": [
