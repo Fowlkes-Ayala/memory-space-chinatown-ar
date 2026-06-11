@@ -374,6 +374,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 
 		this._createDebugOverlay();
+		this._clearAllAnimLayersAtStartup();
 		this._enterNotEngaged();
 		this._lastTime = performance.now();
 		this._animFrameId = requestAnimationFrame(this._animateFrame);
@@ -486,6 +487,22 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				if (pc.layer.active == null) pc.layer.active = undefined; // == also matches undefined
 			} catch { /* internal API — tolerate version differences */ }
 		}
+	}
+
+	/**
+	 * Mattercraft leaves every animation layer in fade→clr q:1 after scene init, before our
+	 * code runs. Force them all to undefined (fully empty) once at startup so the first
+	 * _setAnim call starts from a clean baseline rather than fighting stale queue entries.
+	 */
+	private _clearAllAnimLayersAtStartup(): void {
+		for (const { layer: layerName, clip: clipName } of Object.values(SampleCharacterAnimator._ANIM)) {
+			const clip = this._getClip(layerName, clipName);
+			const lyr = (clip as any)?.layer;
+			if (lyr) {
+				try { lyr.active = undefined; } catch { /* tolerate internal API differences */ }
+			}
+		}
+		this._logDebugEvent("startup: all anim layers cleared");
 	}
 
 	/**
