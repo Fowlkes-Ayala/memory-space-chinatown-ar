@@ -202,12 +202,11 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _currentAnimKey: AnimKey | null = null;
 	private _playingClips: any[] = [];
-	private _crossfadeStopTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Natural clip durations (seconds) — used to schedule one-shot follow-ups.
-	private readonly _PREEN_DURATION_S = 3.0;
-	private readonly _SHAKE_DURATION_S = 1.6;
-	private readonly _DISPLAY_DURATION_S = 4.0;
+	private readonly _PREEN_DURATION_S = 6.53;
+	private readonly _SHAKE_DURATION_S = 8.33;
+	private readonly _DISPLAY_DURATION_S = 7.33;
 
 	// ─── isConversating state ────────────────────────────────────────
 
@@ -369,20 +368,27 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	// ─── Animation helpers ───────────────────────────────────────────
 
 	/**
-	 * Crossfades to a semantic animation behaviour. Because every clip lives on
-	 * its own layer, switching is a blend: the target fades in over `crossfadeTime`
-	 * while the outgoing clip(s) keep playing, then are stopped once the blend has
-	 * completed — so transitions read as a smooth dissolve rather than a hard cut.
+	 * Crossfades to a semantic animation. Every clip lives on its own separate layer,
+	 * so blending between clips requires a two-sided operation:
 	 *
-	 * @param key   which behaviour to play
-	 * @param loop  whether it should loop (locomotion/idle yes; one-shots no)
-	 * @param speed playback timeScale (e.g. a slow walk while turning in place)
-	 * @param force replay even if it's already the current looping animation
+	 *   Fade IN:  play() with {fade} on the incoming clip — the layer's
+	 *             computePathProperty interpolates from valueBefore (the output of
+	 *             all earlier layers, which includes the outgoing clip's pose) to
+	 *             this clip's pose over crossfadeTime.
+	 *
+	 *   Fade OUT: inject a null entry into the outgoing layer's internal queue and
+	 *             make it the active entry (_fadeOutClip). computePathProperty then
+	 *             interpolates from the clip's current pose → valueBefore (transparent)
+	 *             over the same window. The old clip keeps playing (no frame-0 snap)
+	 *             and is removed by the layer's own tick() once the fade is done.
+	 *
+	 * This approach works regardless of layer evaluation order and avoids both snaps
+	 * that plagued the previous stop()-after-timeout strategy.
 	 */
 	private _setAnim(key: AnimKey, opts: { loop?: boolean; speed?: number; force?: boolean } = {}): void {
 		const loop = opts.loop ?? false;
-		// Don't restart a looping animation that's already current — that would
-		// snap it back to frame 0 every call and kill the looping motion.
+		// Don't restart a looping animation that's already the current one — that
+		// would snap it back to frame 0 every call and kill the looping motion.
 		if (!opts.force && loop && key === this._currentAnimKey) return;
 
 		const { layer, clip: clipName } = SampleCharacterAnimator._ANIM[key];
@@ -393,22 +399,55 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 
 		const fadeTime = Math.max(0, this.crossfadeTime.value);
-		clip.timeScale = opts.speed ?? 1;
-		clip.play({ loop, fade: fadeTime > 0 ? { time: fadeTime } : undefined });
+		// Speed is passed through play() — clip.timeScale doesn't exist on LayerClip.
+		clip.play({ loop, speed: opts.speed ?? 1, fade: fadeTime > 0 ? { time: fadeTime } : undefined });
 		this._debugLastAnimPath = `${key} → ${layer}`;
 		this._currentAnimKey = key;
 
-		// Stop everything that was playing before this clip, after the crossfade
-		// window — letting the blend finish first so the swap is invisible.
+		// Simultaneously fade out every clip that was playing before this one.
 		const outgoing = this._playingClips.filter(c => c !== clip);
 		this._playingClips = [clip];
-		if (outgoing.length > 0) {
-			if (this._crossfadeStopTimer !== null) clearTimeout(this._crossfadeStopTimer);
-			this._crossfadeStopTimer = setTimeout(() => {
-				this._crossfadeStopTimer = null;
-				for (const c of outgoing) { try { c.stop(); } catch { /* already gone */ } }
-			}, fadeTime * 1000);
+		for (const c of outgoing) {
+			try { this._fadeOutClip(c, fadeTime); } catch { /* internal API — tolerate version differences */ }
 		}
+	}
+
+	/**
+	 * Fades the given clip's layer out to fully transparent over `fadeTime`, without
+	 * snapping to frame 0. Works by injecting a null "sentinel" entry into the
+	 * layer's internal _queue and promoting it to _active:
+	 *
+	 *   computePathProperty iterates [clip_entry, null_entry]:
+	 *     clip_entry  (inactive): outputs clip_pose
+	 *     null_entry  (active, fade): interpolates clip_pose → valueBefore over fadeTime
+	 *
+	 * The old clip keeps playing normally. The layer's own tick() removes clip_entry
+	 * automatically once the fade window has elapsed.
+	 */
+	private _fadeOutClip(clip: any, fadeTime: number): void {
+		const layer = clip?.layer as any;
+		if (!layer) return;
+		if (fadeTime <= 0) {
+			// No blend window — just make the layer transparent immediately.
+			try { layer.setActive(null); } catch { /* ignore */ }
+			return;
+		}
+		const internalQueue: any[] | undefined = layer._queue;
+		if (!Array.isArray(internalQueue)) {
+			try { layer.setActive(null); } catch { /* ignore */ }
+			return;
+		}
+		const animation: any = layer.animation;
+		const startTime: number = animation?.timeSource?.() ?? performance.now();
+		const fadeEntry = {
+			layerClip: null,
+			playOptions: { fade: { time: fadeTime } },
+			fadeByPath: {},
+			fadeTime,
+			startTime,
+		};
+		internalQueue.push(fadeEntry);
+		layer._active = fadeEntry;
 	}
 
 	/**
@@ -1260,7 +1299,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _updateDebugOverlay(now: number): void {
 		if (!this._debugOverlay) return;
-		if (now - this._debugLastUpdate < 200) return;
+		if (now - this._debugLastUpdate < 50) return;
 		this._debugLastUpdate = now;
 
 		// Summary line — always updated regardless of collapsed state.
@@ -1330,7 +1369,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			}
 			if (animInfo.length === 0) animInfo.push("  (none)");
 			animEntry.contentEl.innerHTML = [
-				`lastPlay: ${this._debugLastAnimPath}`,
+				`lastPlay:   ${this._debugLastAnimPath}`,
+				`fadeTime:   ${this.crossfadeTime.value.toFixed(2)}s`,
 				"behaviors:",
 				...animInfo,
 			].join("<br>");
@@ -1389,10 +1429,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 		this._clearConversatingTimers();
 		this._clearPatrolTimers();
-		if (this._crossfadeStopTimer !== null) {
-			clearTimeout(this._crossfadeStopTimer);
-			this._crossfadeStopTimer = null;
-		}
 		if (this._clientPollInterval !== null) {
 			clearInterval(this._clientPollInterval);
 			this._clientPollInterval = null;

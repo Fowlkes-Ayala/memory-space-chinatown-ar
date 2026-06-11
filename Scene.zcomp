@@ -157,12 +157,34 @@
 			},
 			"d058016307224f449e6d56723d335596": {
 				"id": "d058016307224f449e6d56723d335596",
-				"length": 1000,
+				"length": 6533.333333333333,
 				"lengthType": "expand",
 				"name": "Peacock_A15_licking feathers",
 				"order": "aE",
 				"scriptName": "Peacock_A15_licking_feathers",
 				"tracks": {
+					"72b1d05d1a2042d6a1b7b1e1a84ed214": {
+						"data": {
+							"eb6bc216c2994f66aae1b772e0f926f6": {
+								"id": "eb6bc216c2994f66aae1b772e0f926f6",
+								"rate": 1,
+								"s0": 0,
+								"t0": 0,
+								"t1": 6533.333333333333
+							}
+						},
+						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+						"id": "72b1d05d1a2042d6a1b7b1e1a84ed214",
+						"name": "Peacock.glb > Peacock_A15_licking feathers",
+						"order": "a0",
+						"property": [
+							"streams",
+							"Peacock_A15_licking feathers"
+						],
+						"type": "stream",
+						"weight": {
+						}
+					}
 				},
 				"type": "timeline"
 			},
@@ -791,6 +813,7 @@
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
 			"conversatingTimeout": 8,
+			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
 			"proximityRadius": 1.2
 		},
