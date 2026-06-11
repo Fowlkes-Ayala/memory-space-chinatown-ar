@@ -495,14 +495,13 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 * _setAnim call starts from a clean baseline rather than fighting stale queue entries.
 	 */
 	private _clearAllAnimLayersAtStartup(): void {
-		for (const { layer: layerName, clip: clipName } of Object.values(SampleCharacterAnimator._ANIM)) {
-			const clip = this._getClip(layerName, clipName);
-			const lyr = (clip as any)?.layer;
-			if (lyr) {
-				try { lyr.active = undefined; } catch { /* tolerate internal API differences */ }
-			}
+		// Clear EVERY layer (including ones we don't drive), so a GLB rest/base/auto-play
+		// clip can't sit there holding a partial pose that bleeds over our animations.
+		let n = 0;
+		for (const { layer } of this._collectAllAnimLayers()) {
+			try { layer.active = undefined; n++; } catch { /* tolerate internal API differences */ }
 		}
-		this._logDebugEvent("startup: all anim layers cleared");
+		this._logDebugEvent(`startup: cleared ${n} anim layers`);
 	}
 
 	/**
@@ -642,6 +641,31 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._tmpQuat.copy(obj.quaternion);
 		obj.lookAt(worldPoint);
 		if (isNaN(obj.quaternion.x)) obj.quaternion.copy(this._tmpQuat);
+	}
+
+	/**
+	 * Gathers every unique animation Layer object reachable from the scene — both the
+	 * root scene's animation and each behavior on the Peacock_glb node — deduped by
+	 * object identity. Used by the debug overlay to surface layers we DON'T drive (a
+	 * GLB rest/base clip, an auto-play, a duplicate) which could be holding a residual
+	 * pose invisibly. Each is named by its scriptName key (falling back to its id).
+	 */
+	private _collectAllAnimLayers(): Array<{ name: string; layer: any }> {
+		const seen = new Set<any>();
+		const out: Array<{ name: string; layer: any }> = [];
+		const harvest = (layers: any) => {
+			if (!layers) return;
+			for (const key of Object.keys(layers)) {
+				const lyr = layers[key];
+				if (!lyr || seen.has(lyr)) continue;
+				seen.add(lyr);
+				out.push({ name: key, layer: lyr });
+			}
+		};
+		harvest((this._rootScene as any)?.animation?.layers);
+		const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
+		for (const bk of Object.keys(behaviors ?? {})) harvest(behaviors[bk]?.layers);
+		return out;
 	}
 
 	/** Returns the raw clip object for timeScale manipulation, or null if not found. */
@@ -1478,39 +1502,46 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// ── Animation section ────────────────────────────────────────────
 		const animEntry = this._debugSections.get("Animation");
 		if (animEntry && !animEntry.collapsed) {
-			// Per-layer diagnostics — each row shows:
-			//   active state · queue depth (q) · influenced-paths count (ip)
-			// A layer showing "· q:0 ip:>0" is the bleed culprit: engine thinks it's
-			// inactive but it still has bone paths in its influence set contributing weight.
-			// A layer showing "fade→clear q:>0" has stale queue entries piling up.
+			// Enumerate EVERY layer the animation system has — not just the 5 we drive.
+			// A residual pose has to come from *some* layer contributing weight; if it
+			// isn't one of ours, it's an untracked layer (a GLB rest/base clip, an
+			// auto-play, a duplicate) and that's exactly what this surfaces. Each row:
+			//   name  active-state  q:queue  ip:influencedPaths  clip-playback-flags
+			// Flags decode the LayerClip Observables (layerclip.js): p=playing, a=active,
+			// st=StreamState. A layer marked "·" (inactive) but whose clip still reports
+			// p/a, or a non-ours layer that is ACTIVE, is the bleed source.
+			const ours = new Set(Object.values(SampleCharacterAnimator._ANIM).map(a => a.layer));
 			const layerRows: string[] = [];
-			for (const [key, { layer }] of Object.entries(SampleCharacterAnimator._ANIM)) {
-				const lyr = (this._rootScene as any)?.animation?.layers?.[layer]
-					?? (() => {
-						const bs = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
-						for (const bk of Object.keys(bs ?? {})) if (bs[bk]?.layers?.[layer]) return bs[bk].layers[layer];
-						return null;
-					})();
-
-				if (!lyr) { layerRows.push(`  ${key.padEnd(7)}: NOT FOUND`); continue; }
-
-				const active = lyr.active;
+			for (const { name, layer: lyr } of this._collectAllAnimLayers()) {
+				const active = lyr.active; // LayerClip | null | undefined
 				let mark: string;
 				if (active === undefined)    mark = "·";
 				else if (active === null)    mark = "fade→clr";
-				else                        mark = `ACTIVE[${(active as any)?.id ?? "?"}]`;
+				else                        mark = "ACTIVE";
 
-				// Internal queue — non-zero after a transition means stale entries
 				const qLen: number = (lyr as any)?._queue?.length ?? -1;
-				// Influenced paths — non-zero while mark=·  is the bleed signature
-				const ipCount: number = lyr.influencedPaths?.size ?? -1;
+				const ipCount: number = (() => { try { return lyr.influencedPaths?.size ?? -1; } catch { return -1; } })();
 
-				const qStr  = qLen  >= 0 ? ` q:${qLen}`  : "";
-				const ipStr = ipCount >= 0 ? ` ip:${ipCount}` : "";
-				layerRows.push(`  ${key.padEnd(7)}: ${mark}${qStr}${ipStr}`);
+				// Decode the active clip's live playback flags (the per-clip Observables).
+				let flags = "";
+				if (active) {
+					const p  = active.playing?.value ? "p" : "·";
+					const a  = active.active?.value  ? "a" : "·";
+					const st = active.state?.value ?? "?";
+					flags = ` [${p}${a} ${st}]`;
+				}
+
+				// Does this layer actually contribute to the pose right now? (queue holds
+				// any entry with a real clip). A "true" here while name isn't walk/idle is
+				// the residual-weight smoking gun.
+				const q: any[] = (lyr as any)?._queue ?? [];
+				const contributing = q.some(e => e?.layerClip != null);
+
+				const tag = ours.has(name) ? "" : " ★UNTRACKED";
+				const contribMark = contributing ? " ⚠weight" : "";
+				layerRows.push(`  ${name}: ${mark} q:${qLen} ip:${ipCount}${flags}${contribMark}${tag}`);
 			}
 
-			// _playingClips contents — should always have exactly 1 entry while active
 			const pcNames = this._playingClips.map((c: any) => c?.id ?? "?").join(", ") || "—";
 
 			animEntry.contentEl.innerHTML = [
@@ -1519,8 +1550,9 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				`playingClips[${this._playingClips.length}]: ${pcNames}`,
 				`fadeTime:   ${this.crossfadeTime.value.toFixed(2)}s`,
 				`fadeClears: ${this._pendingFadeClears.length} pending`,
+				`layersTotal: ${layerRows.length}`,
 				"",
-				"layer (active / q:queue / ip:influencedPaths):",
+				"layers (active q:queue ip:paths [flags] weight):",
 				...layerRows,
 			].join("<br>");
 		}
