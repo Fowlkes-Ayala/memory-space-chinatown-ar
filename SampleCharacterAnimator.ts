@@ -1461,9 +1461,12 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// ── Animation section ────────────────────────────────────────────
 		const animEntry = this._debugSections.get("Animation");
 		if (animEntry && !animEntry.collapsed) {
-			// Live active clip per animation layer — a layer stuck non-null/non-walk after
-			// a transition is the "partial weight bleed" symptom.
-			const layerActives: string[] = [];
+			// Per-layer diagnostics — each row shows:
+			//   active state · queue depth (q) · influenced-paths count (ip)
+			// A layer showing "· q:0 ip:>0" is the bleed culprit: engine thinks it's
+			// inactive but it still has bone paths in its influence set contributing weight.
+			// A layer showing "fade→clear q:>0" has stale queue entries piling up.
+			const layerRows: string[] = [];
 			for (const [key, { layer }] of Object.entries(SampleCharacterAnimator._ANIM)) {
 				const lyr = (this._rootScene as any)?.animation?.layers?.[layer]
 					?? (() => {
@@ -1471,16 +1474,37 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 						for (const bk of Object.keys(bs ?? {})) if (bs[bk]?.layers?.[layer]) return bs[bk].layers[layer];
 						return null;
 					})();
-				const active = lyr?.active;
-				const mark = active === undefined ? "·" : active === null ? "fade→clear" : "ACTIVE";
-				layerActives.push(`  ${key}: ${mark}`);
+
+				if (!lyr) { layerRows.push(`  ${key.padEnd(7)}: NOT FOUND`); continue; }
+
+				const active = lyr.active;
+				let mark: string;
+				if (active === undefined)    mark = "·";
+				else if (active === null)    mark = "fade→clr";
+				else                        mark = `ACTIVE[${(active as any)?.id ?? "?"}]`;
+
+				// Internal queue — non-zero after a transition means stale entries
+				const qLen: number = (lyr as any)?._queue?.length ?? -1;
+				// Influenced paths — non-zero while mark=·  is the bleed signature
+				const ipCount: number = lyr.influencedPaths?.size ?? -1;
+
+				const qStr  = qLen  >= 0 ? ` q:${qLen}`  : "";
+				const ipStr = ipCount >= 0 ? ` ip:${ipCount}` : "";
+				layerRows.push(`  ${key.padEnd(7)}: ${mark}${qStr}${ipStr}`);
 			}
+
+			// _playingClips contents — should always have exactly 1 entry while active
+			const pcNames = this._playingClips.map((c: any) => c?.id ?? "?").join(", ") || "—";
+
 			animEntry.contentEl.innerHTML = [
+				`currentKey: ${this._currentAnimKey ?? "—"}`,
 				`lastPlay:   ${this._debugLastAnimPath}`,
+				`playingClips[${this._playingClips.length}]: ${pcNames}`,
 				`fadeTime:   ${this.crossfadeTime.value.toFixed(2)}s`,
 				`fadeClears: ${this._pendingFadeClears.length} pending`,
-				"layerActive:",
-				...layerActives,
+				"",
+				"layer (active / q:queue / ip:influencedPaths):",
+				...layerRows,
 			].join("<br>");
 		}
 
