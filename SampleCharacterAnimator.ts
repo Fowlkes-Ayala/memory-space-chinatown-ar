@@ -251,6 +251,16 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	// through even a 180° turn rather than pivoting in place, and by slowing hard
 	// turns it shrinks the turn radius so a sharp target can never become an orbit.
 	private readonly _STEER_SPEED_FLOOR = 0.35;
+	// Arrival watchdog (anti-orbit). A pure-pursuit walker circles forever if the target
+	// sits inside its turning circle: it keeps turning toward a point it can't curve
+	// tightly enough to reach, so the distance plateaus instead of shrinking. We watch
+	// for that — distance not improving while still short of the goal — and break it by
+	// cranking turn authority and easing off speed so the radius collapses and it spirals
+	// straight in. Selection (`_minWanderDist`) also refuses targets close enough to risk it.
+	private _bestDistToTarget = Infinity;   // smallest distance seen toward the current target
+	private _noProgressTime = 0;             // seconds since distance last improved
+	private readonly _ORBIT_STALL_S = 1.0;   // no-progress time that counts as an orbit
+	private _orbitEscaping = false;          // currently force-converging out of an orbit
 	// Debug readouts (shown in the Locomotion overlay section).
 	private _debugHeadingErrDeg = 0;
 	private _debugAlign = 1;

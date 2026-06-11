@@ -549,10 +549,10 @@
 			"source": "file://./3D Models/marker.glb"
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
-			"developerToken": "51ad3887c8048c53e0460e6fd9e443f6d96a4e43fcb044fa9a2d69f971a5159d",
-			"mapID": "147442",
-			"previewType": "DensePLY",
-			"showPreviewAtRuntime": true
+			"developerToken": "d9d150c990cf2d0e39a60981453c2ab1ba5d6b3d1d86a556c8e7d8e6a81c0647",
+			"mapID": "147456",
+			"previewType": "GLB",
+			"showPreviewAtRuntime": false
 		},
 		"ad45d1a5acda48c69755ecab561a19b7": {
 		},
@@ -658,9 +658,9 @@
 		},
 		"3c9d24ff852b4831ad43edc516f2918a": {
 			"position": [
-				1.5568699331187317,
-				-1.609027951212682,
-				-3.228030707580448
+				1.2481831216885402,
+				-1.6,
+				-3.0902652974878038
 			]
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
@@ -670,9 +670,9 @@
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
 			"enabled": true,
 			"position": [
-				1.2640980060450284,
+				1.6669573893476954,
 				-1.636584507626377,
-				-1.8843826128120018
+				1.5698957632791073
 			],
 			"rotation": [
 				0,
@@ -706,9 +706,9 @@
 		},
 		"9ad0055394464bc295613f07657950d9": {
 			"position": [
-				0.06355962694039163,
-				-1.609027951212682,
-				-3.027874766198307
+				0.4285723010537721,
+				-1.6,
+				0.15981452074736868
 			]
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
@@ -723,16 +723,16 @@
 		},
 		"b2bed9100d304718a43e7caed392a228": {
 			"position": [
-				0.8539286679254424,
-				-1.609027951212682,
-				0.6996210579932272
+				2.7598912902360198,
+				-1.6,
+				2.217414721577774
 			]
 		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"position": [
-				2.455019559788257,
-				-1.609027951212682,
-				0.3463367212391273
+				4.226372396516943,
+				-1.6,
+				-1.3537315954720461
 			]
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
@@ -742,7 +742,7 @@
 			"conversatingTimeout": 8,
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
-			"proximityRadius": 1.2,
+			"proximityRadius": 1.8,
 			"turnSpeed": 0.8,
 			"walkSpeed": 0.5
 		},
