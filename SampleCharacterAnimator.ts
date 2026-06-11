@@ -206,6 +206,13 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _currentAnimKey: AnimKey | null = null;
 	private _playingClips: any[] = [];
 
+	// Pending hard-clears of faded-out layers. After a cross-layer fade-out we can't
+	// trust the engine's internal queue cleanup to fully release the layer (observed:
+	// preen/display poses staying partially weighted, bleeding over the walk). So once
+	// the blend window has elapsed we force the layer empty ourselves, on our own RAF
+	// clock (ms, same DOMHighResTimeStamp as requestAnimationFrame).
+	private _pendingFadeClears: Array<{ layer: any; clearAt: number }> = [];
+
 	// Natural clip durations (seconds) — used to schedule one-shot follow-ups.
 	private readonly _PREEN_DURATION_S = 6.53;
 	private readonly _SHAKE_DURATION_S = 8.33;
@@ -259,9 +266,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _patrolAnimState: string = "none";
 
 	// Gentle idle look-around so the bird is never frozen while settled.
-	private _lookPoint = new Vector3();
-	private _hasLookPoint = false;
-	private _nextLookTime = 0;
+
 
 	// Approach "notice" beat — orient before walking over.
 	private _approachNoticeUntil = 0;
@@ -404,11 +409,11 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 *             all earlier layers, which includes the outgoing clip's pose) to
 	 *             this clip's pose over crossfadeTime.
 	 *
-	 *   Fade OUT: inject a null entry into the outgoing layer's internal queue and
-	 *             make it the active entry (_fadeOutClip). computePathProperty then
-	 *             interpolates from the clip's current pose → valueBefore (transparent)
+	 *   Fade OUT: layer.setActive(null, {fade}) on the outgoing clip's layer
+	 *             (_fadeOutClip) — the engine queues a null entry after the active
+	 *             clip and blends the clip's current pose → valueBefore (transparent)
 	 *             over the same window. The old clip keeps playing (no frame-0 snap)
-	 *             and is removed by the layer's own tick() once the fade is done.
+	 *             and is cleaned up by the layer's own tick() once the fade is done.
 	 *
 	 * This approach works regardless of layer evaluation order and avoids both snaps
 	 * that plagued the previous stop()-after-timeout strategy.
@@ -442,40 +447,45 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	/**
 	 * Fades the given clip's layer out to fully transparent over `fadeTime`, without
-	 * snapping to frame 0. Works by injecting a null "sentinel" entry into the
-	 * layer's internal _queue and promoting it to _active:
+	 * snapping to frame 0.
 	 *
-	 *   computePathProperty iterates [clip_entry, null_entry]:
-	 *     clip_entry  (inactive): outputs clip_pose
-	 *     null_entry  (active, fade): interpolates clip_pose → valueBefore over fadeTime
-	 *
-	 * The old clip keeps playing normally. The layer's own tick() removes clip_entry
-	 * automatically once the fade window has elapsed.
+	 * This delegates to the engine's `layer.setActive(null, { fade })` — the exact call
+	 * Mattercraft's own ToggleLayerClips behavior uses to fade a layer out. It queues a
+	 * null entry after the layer's current active clip (so the old pose blends out to
+	 * `valueBefore` over the window, no frame-0 snap) AND splices the queue clean first,
+	 * so repeated settle→walk cycles don't pile up stale entries. A previous hand-rolled
+	 * version pushed onto layer._queue directly without that splice; the orphaned null
+	 * entries it left behind eventually wedged tick()'s cleanup and froze the layer on a
+	 * partially-weighted pose (preen head-tilt / half-raised tail bleeding over the walk).
 	 */
 	private _fadeOutClip(clip: any, fadeTime: number): void {
 		const layer = clip?.layer as any;
-		if (!layer) return;
-		if (fadeTime <= 0) {
-			// No blend window — just make the layer transparent immediately.
-			try { layer.setActive(null); } catch { /* ignore */ }
-			return;
+		if (!layer || typeof layer.setActive !== "function") return;
+		const fade = fadeTime > 0 ? { time: fadeTime } : { time: 0, easing: null };
+		try { layer.setActive(null, { fade }); } catch { /* internal API — tolerate version differences */ }
+		// Guarantee the layer ends fully empty once the blend has finished. The +200ms
+		// margin keeps the hard-clear safely after the visible fade so it can't cut the
+		// blend short — by then the layer is already transparent, so clearing is invisible.
+		const clearAt = performance.now() + Math.max(0, fadeTime) * 1000 + 200;
+		this._pendingFadeClears.push({ layer, clearAt });
+	}
+
+	/**
+	 * Force-empties any faded-out layer whose blend window has elapsed, so no residual
+	 * partial weight can linger. Only clears a layer still showing our null fade sentinel
+	 * (layer.active == null); if a fresh clip has since taken the layer over, it's left
+	 * alone. Setting `layer.active = undefined` wipes the queue and re-evaluates the
+	 * influenced bones back to their base pose immediately.
+	 */
+	private _processFadeClears(now: number): void {
+		for (let i = this._pendingFadeClears.length - 1; i >= 0; i--) {
+			const pc = this._pendingFadeClears[i];
+			if (now < pc.clearAt) continue;
+			this._pendingFadeClears.splice(i, 1);
+			try {
+				if (pc.layer.active == null) pc.layer.active = undefined; // == also matches undefined
+			} catch { /* internal API — tolerate version differences */ }
 		}
-		const internalQueue: any[] | undefined = layer._queue;
-		if (!Array.isArray(internalQueue)) {
-			try { layer.setActive(null); } catch { /* ignore */ }
-			return;
-		}
-		const animation: any = layer.animation;
-		const startTime: number = animation?.timeSource?.() ?? performance.now();
-		const fadeEntry = {
-			layerClip: null,
-			playOptions: { fade: { time: fadeTime } },
-			fadeByPath: {},
-			fadeTime,
-			startTime,
-		};
-		internalQueue.push(fadeEntry);
-		layer._active = fadeEntry;
 	}
 
 	/**
@@ -645,6 +655,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		const obj = this._obj;
 
 		this._updateDebugOverlay(time);
+		if (this._pendingFadeClears.length > 0) this._processFadeClears(time);
 
 		switch (this._state) {
 			case "notEngaged": {
@@ -679,9 +690,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 						this.walkSpeed.value * this._strollSpeedFactor);
 
 					if (dist <= this._ARRIVE_DIST) this._beginSettle();
-				} else {
-					// Settled in place — gentle idle look-around so it's never frozen.
-					this._idleLookAround(obj, time, dt);
 				}
 				break;
 			}
@@ -775,29 +783,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 	}
 
-	/**
-	 * Gentle idle "look around" while settled: every few seconds pick a new nearby
-	 * point to glance toward and slowly turn the body toward it. Keeps the bird
-	 * subtly alive (scanning/foraging head movement) instead of statue-still.
-	 */
-	private _idleLookAround(obj: Object3D, time: number, dt: number): void {
-		// Only steer the body during the looping idle — never mid preen/shake/display.
-		if (this._currentAnimKey !== "idle") return;
-		if (!this._hasLookPoint || time >= this._nextLookTime) {
-			obj.getWorldPosition(this._tmpVec);
-			const ang = Math.random() * Math.PI * 2;
-			// Bias glances roughly forward-ish but allow the occasional full turn.
-			this._lookPoint.set(
-				this._tmpVec.x + Math.cos(ang) * 2,
-				this._tmpVec.y,
-				this._tmpVec.z + Math.sin(ang) * 2,
-			);
-			this._hasLookPoint = true;
-			this._nextLookTime = time + MathUtils.randFloat(1.6, 3.6) * 1000;
-		}
-		// A slow, lazy turn rate — this is idle curiosity, not urgent reorientation.
-		this._smoothTurnToward(obj, this._lookPoint, dt, this.turnSpeed.value * 0.25);
-	}
+
 
 	// ─── Event handlers ──────────────────────────────────────────────
 
@@ -972,7 +958,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _enterNotEngaged(awayFromCamera = false): void {
 		this._clearPatrolTimers();
 		this._speed = 0;
-		this._hasLookPoint = false;
 		this._beginStroll(awayFromCamera);
 	}
 
@@ -1047,7 +1032,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._clearPatrolTimers();
 		this._wanderSub = "settle";
 		this._patrolAnimState = "settle";
-		this._hasLookPoint = false;
 
 		// Sometimes don't really stop — a foraging bird takes a few steps, then a few
 		// more. Decide this before braking so the gait keeps its momentum.
@@ -1477,20 +1461,26 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// ── Animation section ────────────────────────────────────────────
 		const animEntry = this._debugSections.get("Animation");
 		if (animEntry && !animEntry.collapsed) {
-			const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
-			const animInfo: string[] = [];
-			if (behaviors) {
-				for (const bkey of Object.keys(behaviors)) {
-					const layers = behaviors[bkey]?.layers;
-					if (layers) animInfo.push(`  ${bkey}: [${Object.keys(layers).join(", ")}]`);
-				}
+			// Live active clip per animation layer — a layer stuck non-null/non-walk after
+			// a transition is the "partial weight bleed" symptom.
+			const layerActives: string[] = [];
+			for (const [key, { layer }] of Object.entries(SampleCharacterAnimator._ANIM)) {
+				const lyr = (this._rootScene as any)?.animation?.layers?.[layer]
+					?? (() => {
+						const bs = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
+						for (const bk of Object.keys(bs ?? {})) if (bs[bk]?.layers?.[layer]) return bs[bk].layers[layer];
+						return null;
+					})();
+				const active = lyr?.active;
+				const mark = active === undefined ? "·" : active === null ? "fade→clear" : "ACTIVE";
+				layerActives.push(`  ${key}: ${mark}`);
 			}
-			if (animInfo.length === 0) animInfo.push("  (none)");
 			animEntry.contentEl.innerHTML = [
 				`lastPlay:   ${this._debugLastAnimPath}`,
 				`fadeTime:   ${this.crossfadeTime.value.toFixed(2)}s`,
-				"behaviors:",
-				...animInfo,
+				`fadeClears: ${this._pendingFadeClears.length} pending`,
+				"layerActive:",
+				...layerActives,
 			].join("<br>");
 		}
 
