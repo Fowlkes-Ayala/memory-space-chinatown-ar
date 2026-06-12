@@ -564,6 +564,17 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	}
 
 	/**
+	 * Resets the arrival watchdog. Call whenever a fresh navigation target is committed
+	 * (a new wander waypoint, or starting an approach) so the no-progress timer measures
+	 * progress toward *this* target, not a stale one.
+	 */
+	private _resetArrivalWatchdog(): void {
+		this._bestDistToTarget = Infinity;
+		this._noProgressTime = 0;
+		this._orbitEscaping = false;
+	}
+
+	/**
 	 * Coupled steer-and-move toward a local-space XZ target. The bird walks *along its
 	 * heading* (so it never glides diagonally), and the heading is rotated toward the
 	 * target at a capped yaw rate (`turnSpeed`, rad/s) — a forward walking arc, not a
@@ -599,6 +610,18 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		const dist = Math.sqrt(dx * dx + dz * dz);
 		if (dist < 1e-5) { this._speed = 0; return dist; }
 
+		// Arrival watchdog: a pure-pursuit walker orbits forever when the target sits
+		// inside its turning circle — it keeps curving toward a point it can't reach, so
+		// the distance stops shrinking. Detect that (no improvement for _ORBIT_STALL_S
+		// while still short of the goal) and flip into an escape mode below.
+		if (dist < this._bestDistToTarget - 0.01) {
+			this._bestDistToTarget = dist;
+			this._noProgressTime = 0;
+		} else {
+			this._noProgressTime += dt;
+		}
+		this._orbitEscaping = this._noProgressTime > this._ORBIT_STALL_S && dist > this._ARRIVE_DIST;
+
 		// Heading error toward the target bearing, wrapped to [-π, π].
 		const bearing = Math.atan2(dx, dz);
 		let err = bearing - this._headingYaw;
@@ -608,18 +631,23 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// not a flat constant-speed pan). Desired rate is proportional to the heading
 		// error so it eases out as the bird lines up, capped at turnSpeed with a small
 		// per-maneuver variance; the actual rate ramps toward it (angular accel) so the
-		// turn also eases in from rest.
-		const maxRate = this.turnSpeed.value * this._turnRateScale;
-		const desiredRate = Math.max(-maxRate, Math.min(maxRate, err * this._TURN_KP));
-		const dRate = this._YAW_ACCEL * dt;
+		// turn also eases in from rest. Escaping an orbit, crank the cap so the heading
+		// snaps onto the bearing and the turning circle collapses to nothing.
+		const maxRate = this.turnSpeed.value * this._turnRateScale * (this._orbitEscaping ? 6 : 1);
+		const desiredRate = Math.max(-maxRate, Math.min(maxRate, err * this._TURN_KP * (this._orbitEscaping ? 6 : 1)));
+		const dRate = this._YAW_ACCEL * (this._orbitEscaping ? 6 : 1) * dt;
 		this._yawRate += Math.max(-dRate, Math.min(dRate, desiredRate - this._yawRate));
 		let dYaw = this._yawRate * dt;
 		if (Math.abs(dYaw) >= Math.abs(err)) { dYaw = err; this._yawRate = desiredRate; } // don't overshoot
 		this._headingYaw += dYaw;
 
 		// Forward speed: ease toward the goal AND slow for sharp turns (alignment gate,
-		// floored so a U-turn still arcs forward instead of pivoting).
-		const align = Math.max(this._STEER_SPEED_FLOOR, Math.cos(err));
+		// floored so a U-turn still arcs forward instead of pivoting). While escaping an
+		// orbit, ease off hard so the (now fast-turning) heading lines up before it travels
+		// — radius = speed/turnRate → tiny, so it spirals straight in instead of circling.
+		const align = this._orbitEscaping
+			? 0.15 * Math.max(0, Math.cos(err))
+			: Math.max(this._STEER_SPEED_FLOOR, Math.cos(err));
 		const desired = Math.min(maxSpeed, dist * this._ARRIVE_DECEL_K) * align;
 		const ds = this._ACCEL * dt;
 		if (this._speed < desired) this._speed = Math.min(desired, this._speed + ds);
@@ -902,6 +930,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._greetOnArrival = greetOnArrival;
 		this._state = "approaching";
 		this._patrolAnimState = "none";
+		this._resetArrivalWatchdog();
 		// "Notice" beat first: stand alert and orient toward the viewer for a moment
 		// (idle pose) before committing to the walk — see the approaching case in _animate.
 		this._approachNoticeUntil = performance.now() + this.noticeDuration.value * 1000;
@@ -1044,34 +1073,59 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// Give this leg's turns their own briskness so no two maneuvers sweep identically.
 		this._turnRateScale = MathUtils.randFloat(0.72, 1.3);
 
+		// Never aim at a spot the bird would orbit. A target inside the turning circle can't
+		// be reached by curving toward it, so require it to be at least the turn *diameter*
+		// (2R, R = speed / yawRate) away — that puts it outside both forbidden circles for
+		// any starting bearing. Computed from this leg's actual speed/turn-rate, plus margin.
+		const turnRadius = (this.walkSpeed.value * this._strollSpeedFactor) /
+			Math.max(0.1, this.turnSpeed.value * this._turnRateScale);
+		const minDist = 2 * turnRadius + 0.15;
+
 		const obj = this._obj;
 		obj.getWorldPosition(this._tmpVec);
 		const cx = this._tmpVec.x, cz = this._tmpVec.z;
+		const farEnough = (p: { x: number; z: number }) =>
+			(p.x - cx) ** 2 + (p.z - cz) ** 2 >= minDist * minDist;
 		let best: { x: number; z: number } | null = null;
 
 		if (awayFromCamera && this._camera) {
-			// Pick, among a few candidates, the one furthest from the viewer.
+			// Pick, among a few candidates, the one furthest from the viewer — but only
+			// from those far enough not to orbit (fall back to furthest overall if none).
 			this._camera.getWorldPosition(this._tmpVec2);
-			let bestScore = -Infinity;
-			for (let i = 0; i < 6; i++) {
+			let bestScore = -Infinity, bestAny: { x: number; z: number } | null = null, bestAnyScore = -Infinity;
+			for (let i = 0; i < 8; i++) {
 				const c = this._samplePointInPolygon(verts);
 				const score = (c.x - this._tmpVec2.x) ** 2 + (c.z - this._tmpVec2.z) ** 2;
-				if (score > bestScore) { bestScore = score; best = c; }
+				if (score > bestAnyScore) { bestAnyScore = score; bestAny = c; }
+				if (farEnough(c) && score > bestScore) { bestScore = score; best = c; }
 			}
+			best = best ?? bestAny;
 		} else if (Math.random() < 0.6) {
-			// Short forage hop: a nearby point that's still inside the boundary.
-			for (let i = 0; i < 8; i++) {
+			// Short forage hop: a nearby point that's still inside the boundary AND at least
+			// the orbit-safe distance away (so the "short" hop can't become a tight circle).
+			const rMax = Math.max(minDist + 0.5, 1.3);
+			for (let i = 0; i < 10; i++) {
 				const ang = Math.random() * Math.PI * 2;
-				const r = MathUtils.randFloat(0.35, 1.3);
+				const r = MathUtils.randFloat(minDist, rMax);
 				const px = cx + Math.cos(ang) * r, pz = cz + Math.sin(ang) * r;
 				if (this._pointInPolygon(verts, px, pz)) { best = { x: px, z: pz }; break; }
 			}
 		}
-		if (!best) best = this._samplePointInPolygon(verts); // longer stroll / fallback
+		if (!best || !farEnough(best)) {
+			// Longer stroll / fallback — resample until far enough (bounded), so even the
+			// fallback never hands back an orbit-prone target.
+			for (let i = 0; i < 12; i++) {
+				const c = this._samplePointInPolygon(verts);
+				if (farEnough(c)) { best = c; break; }
+				best = best ?? c;
+			}
+			if (!best) best = this._samplePointInPolygon(verts);
+		}
 
 		// WORLD space — must NOT be pre-converted to parent-local here; _animate does
 		// that fresh each frame against the live VPS anchor pose. (y unused downstream.)
 		this._patrolWaypoint.set(best.x, 0, best.z);
+		this._resetArrivalWatchdog();
 	}
 
 	/**
@@ -1506,6 +1560,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				`speed:      ${this._speed.toFixed(2)} m/s`,
 				`yawRate:    ${(this._yawRate * 180 / Math.PI).toFixed(0)}°/s`,
 				`turnCap:    ${(this.turnSpeed.value * this._turnRateScale).toFixed(1)} rad/s  (×${this._turnRateScale.toFixed(2)})`,
+				`noProgress: ${this._noProgressTime.toFixed(1)}s  ${this._orbitEscaping ? "⚠ ORBIT-ESCAPE" : ""}`,
 			].join("<br>");
 		}
 
