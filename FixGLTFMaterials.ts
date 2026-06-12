@@ -3,7 +3,7 @@ import { Mesh, MeshStandardMaterial, MeshPhysicalMaterial } from "three";
 
 
 interface ConstructionProps {
-	// Add any constructor props you'd like for your behavior here
+	// None
 }
 
 /**

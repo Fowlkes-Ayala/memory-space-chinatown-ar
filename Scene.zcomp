@@ -129,6 +129,25 @@
 						"type": "stream",
 						"weight": {
 						}
+					},
+					"fae68bea8fe644418716a5169cf521ca": {
+						"blend": "overlay",
+						"entityID": "6f84c31dfc5b4a6a8a352f88698c441b",
+						"id": "fae68bea8fe644418716a5169cf521ca",
+						"keyframes": {
+							"182c85fd80b048adbcec647b7decee85": {
+								"id": "182c85fd80b048adbcec647b7decee85",
+								"t": 0,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
+						"weight": {
+						}
 					}
 				},
 				"type": "timeline"
@@ -144,6 +163,58 @@
 				},
 				"type": "state"
 			},
+			"b6536bd67a8547b4894d32b937cec5a6": {
+				"id": "b6536bd67a8547b4894d32b937cec5a6",
+				"length": 1350,
+				"lengthType": "expand",
+				"name": "Peacock_A15_Walk",
+				"order": "aJ",
+				"scriptName": "Peacock_A15_Walk0",
+				"tracks": {
+					"36cdcd2a93684e42a088fc3ffda3c684": {
+						"blend": "overlay",
+						"entityID": "f3bcc0f707b1459c991dd232a635b1e2",
+						"id": "36cdcd2a93684e42a088fc3ffda3c684",
+						"keyframes": {
+							"7d1c371b867b4157aabfd55d47e1f447": {
+								"id": "7d1c371b867b4157aabfd55d47e1f447",
+								"t": 0,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
+						"weight": {
+						}
+					},
+					"b7318ce9d25340deb14de629ac5ff03b": {
+						"data": {
+							"19ac6fee6e384d73bff4f8fa04ac3745": {
+								"id": "19ac6fee6e384d73bff4f8fa04ac3745",
+								"rate": 1,
+								"s0": 0,
+								"t0": 0,
+								"t1": 1350
+							}
+						},
+						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+						"id": "b7318ce9d25340deb14de629ac5ff03b",
+						"name": "Peacock.glb > Peacock_A15_Walk",
+						"order": "a0",
+						"property": [
+							"streams",
+							"Peacock_A15_Walk"
+						],
+						"type": "stream",
+						"weight": {
+						}
+					}
+				},
+				"type": "timeline"
+			},
 			"b7cd899576524ad0842f7ac8392a84a9": {
 				"id": "b7cd899576524ad0842f7ac8392a84a9",
 				"length": 0,
@@ -154,6 +225,58 @@
 				"tracks": {
 				},
 				"type": "state"
+			},
+			"ba2297d896c044c8bf1c325934ec853b": {
+				"id": "ba2297d896c044c8bf1c325934ec853b",
+				"length": 8333.333333333334,
+				"lengthType": "expand",
+				"name": "Peacock_A15_Spreadfeathers2",
+				"order": "aI",
+				"scriptName": "Peacock_A15_Spreadfeathers2",
+				"tracks": {
+					"7f6f07c361d043958ddbcdecb1129660": {
+						"data": {
+							"b24c9b499ab248a38cd11cbd72c9c09d": {
+								"id": "b24c9b499ab248a38cd11cbd72c9c09d",
+								"rate": 1,
+								"s0": 0,
+								"t0": 0,
+								"t1": 8333.333333333334
+							}
+						},
+						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+						"id": "7f6f07c361d043958ddbcdecb1129660",
+						"name": "Peacock.glb > Peacock_A15_Spread feathers2",
+						"order": "a0",
+						"property": [
+							"streams",
+							"Peacock_A15_Spread feathers2"
+						],
+						"type": "stream",
+						"weight": {
+						}
+					},
+					"bea59eea3651450badad89e10896f4d5": {
+						"blend": "overlay",
+						"entityID": "673fa75cb9bf440cbf1a9e8feae68855",
+						"id": "bea59eea3651450badad89e10896f4d5",
+						"keyframes": {
+							"7fe23f533e3547fc92a42f97b578b281": {
+								"id": "7fe23f533e3547fc92a42f97b578b281",
+								"t": 0,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
+						"weight": {
+						}
+					}
+				},
+				"type": "timeline"
 			},
 			"d058016307224f449e6d56723d335596": {
 				"id": "d058016307224f449e6d56723d335596",
@@ -182,6 +305,25 @@
 							"Peacock_A15_licking feathers"
 						],
 						"type": "stream",
+						"weight": {
+						}
+					},
+					"cfd85c3db6874cdc99608ab01ce09876": {
+						"blend": "overlay",
+						"entityID": "0fc6823e2238490499ed99485e57751a",
+						"id": "cfd85c3db6874cdc99608ab01ce09876",
+						"keyframes": {
+							"358c71f6f9de4fdd8d80cf0d71883323": {
+								"id": "358c71f6f9de4fdd8d80cf0d71883323",
+								"t": 6533.333333332092,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
 						"weight": {
 						}
 					}
@@ -215,6 +357,25 @@
 							"Peacock_A15_Idle"
 						],
 						"type": "stream",
+						"weight": {
+						}
+					},
+					"7e55b4a0c7cc454ca04b422a3297cfa9": {
+						"blend": "overlay",
+						"entityID": "bfdf8fcf7d5a45948ad17dc9b1039211",
+						"id": "7e55b4a0c7cc454ca04b422a3297cfa9",
+						"keyframes": {
+							"fde7478f14af4d63832bfaebdc940415": {
+								"id": "fde7478f14af4d63832bfaebdc940415",
+								"t": 330,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
 						"weight": {
 						}
 					}
@@ -260,29 +421,32 @@
 		"curves": {
 		},
 		"layers": {
-			"37405033d86e41458bcadec900cb1679": {
+			"3b5679078f3b4155a2c93714a5febe2e": {
 				"clips": {
 					"069124d457f84313bd323bf160da9a7c": {
 						"clipId": "d058016307224f449e6d56723d335596",
 						"id": "069124d457f84313bd323bf160da9a7c",
 						"order": "a2",
 						"scriptName": "Peacock_A15_licking_feathers"
-					}
-				},
-				"defaultClip": null,
-				"defaultFadeParameters": {
-					"easing": "ease",
-					"pin": 0,
-					"time": 300
-				},
-				"enabled": true,
-				"id": "37405033d86e41458bcadec900cb1679",
-				"name": "Peacock_A15_",
-				"order": "a5",
-				"scriptName": "Peacock_A15_"
-			},
-			"3b5679078f3b4155a2c93714a5febe2e": {
-				"clips": {
+					},
+					"1307c685e18647abab1cc1b8940bbd93": {
+						"clipId": "a4d6a5fa401e43eb9c2236bd976ed9c4",
+						"id": "1307c685e18647abab1cc1b8940bbd93",
+						"order": "a2",
+						"scriptName": "Peacock_A15_Spreadfeathers"
+					},
+					"64b5e2ca69c24701bf5bd5abaa5a39dc": {
+						"clipId": "ba2297d896c044c8bf1c325934ec853b",
+						"id": "64b5e2ca69c24701bf5bd5abaa5a39dc",
+						"order": "a3",
+						"scriptName": "Peacock_A15_Spreadfeathers2"
+					},
+					"a40825bd899c4eb1ba16a61ef07699d3": {
+						"clipId": "b6536bd67a8547b4894d32b937cec5a6",
+						"id": "a40825bd899c4eb1ba16a61ef07699d3",
+						"order": "a4",
+						"scriptName": "Peacock_A15_Walk"
+					},
 					"a48d9eed30e3435d86ae574130436191": {
 						"clipId": "d6ee80c2b19f4bc5af8f24ff3b5c9cca",
 						"id": "a48d9eed30e3435d86ae574130436191",
@@ -298,76 +462,23 @@
 				},
 				"enabled": true,
 				"id": "3b5679078f3b4155a2c93714a5febe2e",
-				"name": "Peacock_A15_Idle",
+				"name": "PeacockAnimations",
 				"order": "a4",
-				"scriptName": "Peacock_A15_Idle"
-			},
-			"41b203b639da4f0ba4787bf554df189c": {
-				"clips": {
-					"2209e46ef7e04bb2b1de705387feceda": {
-						"clipId": "5f4fa139eb18404283ae5580458f72d2",
-						"id": "2209e46ef7e04bb2b1de705387feceda",
-						"order": "a2",
-						"scriptName": "Peacock_A15_Walk"
-					}
-				},
-				"defaultClip": null,
-				"defaultFadeParameters": {
-					"easing": "ease",
-					"pin": 0,
-					"time": 300
-				},
-				"enabled": true,
-				"id": "41b203b639da4f0ba4787bf554df189c",
-				"name": "Peacock_A15_Walk",
-				"order": "a9",
-				"scriptName": "Peacock_A15_Walk"
-			},
-			"82450ed948d44b89b3a869db9c0d9da0": {
-				"clips": {
-					"1307c685e18647abab1cc1b8940bbd93": {
-						"clipId": "a4d6a5fa401e43eb9c2236bd976ed9c4",
-						"id": "1307c685e18647abab1cc1b8940bbd93",
-						"order": "a2",
-						"scriptName": "Peacock_A15_Spreadfeathers"
-					}
-				},
-				"defaultClip": null,
-				"defaultFadeParameters": {
-					"easing": "ease",
-					"pin": 0,
-					"time": 300
-				},
-				"enabled": true,
-				"id": "82450ed948d44b89b3a869db9c0d9da0",
-				"name": "Peacock_A15_Spread feathers",
-				"order": "a7",
-				"scriptName": "Peacock_A15_Spread_feathers"
-			},
-			"c8cef4e3bc9040179b59ee75a478e012": {
-				"clips": {
-					"03ace88796f64529abfc587964e7e0ef": {
-						"clipId": "367bf5e0710b4f258ef00545dabe73ff",
-						"id": "03ace88796f64529abfc587964e7e0ef",
-						"order": "a2",
-						"scriptName": "Peacock_A15_Spread_feathers2"
-					}
-				},
-				"defaultClip": null,
-				"defaultFadeParameters": {
-					"easing": "ease",
-					"pin": 0,
-					"time": 300
-				},
-				"enabled": true,
-				"id": "c8cef4e3bc9040179b59ee75a478e012",
-				"name": "Peacock_A15_Spread feathers2",
-				"order": "a8",
-				"scriptName": "Peacock_A15_Spread_feathers2"
+				"scriptName": "PeacockAnimations"
 			}
 		}
 	},
 	"behaviors": {
+		"0fc6823e2238490499ed99485e57751a": {
+			"id": "0fc6823e2238490499ed99485e57751a",
+			"label": "Peacock_A15_LickingFeathers",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a6",
+				"scriptName": "Peacock_A15_LickingFeathers"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
 		"23a0093e086a47b0b31edc05a01beda8-0": {
 			"id": "23a0093e086a47b0b31edc05a01beda8-0",
 			"label": "EstuaryVoiceConnection",
@@ -387,6 +498,36 @@
 			},
 			"type": "./FixGLTFMaterials#FixGLTFMaterials"
 		},
+		"673fa75cb9bf440cbf1a9e8feae68855": {
+			"id": "673fa75cb9bf440cbf1a9e8feae68855",
+			"label": "Peacock_A15_SpreadFeathers2",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a7",
+				"scriptName": "Peacock_A15_SpreadFeathers2"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
+		"6f84c31dfc5b4a6a8a352f88698c441b": {
+			"id": "6f84c31dfc5b4a6a8a352f88698c441b",
+			"label": "Peacock_A15_Spreadfeathers",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a5",
+				"scriptName": "Peacock_A15_Spreadfeathers"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
+		"bfdf8fcf7d5a45948ad17dc9b1039211": {
+			"id": "bfdf8fcf7d5a45948ad17dc9b1039211",
+			"label": "Peacock_A15_Idle",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a4",
+				"scriptName": "Peacock_A15_Idle0"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
 			"id": "d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0",
 			"label": "SampleCharacterAnimator",
@@ -395,6 +536,16 @@
 				"order": "a0"
 			},
 			"type": "./SampleCharacterAnimator#SampleCharacterAnimator"
+		},
+		"f3bcc0f707b1459c991dd232a635b1e2": {
+			"id": "f3bcc0f707b1459c991dd232a635b1e2",
+			"label": "Peacock_A15_Walk",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a8",
+				"scriptName": "Peacock_A15_Walk"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
 		}
 	},
 	"constructorProps": {
@@ -519,6 +670,9 @@
 		},
 		"0d292fedc36f47e6b38db8eb0c0a6921": {
 		},
+		"0fc6823e2238490499ed99485e57751a": {
+			"name": "Peacock_A15_licking feathers"
+		},
 		"23a0093e086a47b0b31edc05a01beda8-0": {
 		},
 		"26855c66e5484b449401ca65edab4860": {
@@ -535,6 +689,12 @@
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
 			"source": "file://./3D Models/CHAR_Peacock.glb"
 		},
+		"673fa75cb9bf440cbf1a9e8feae68855": {
+			"name": "Peacock_A15_Spread feathers2"
+		},
+		"6f84c31dfc5b4a6a8a352f88698c441b": {
+			"name": "Peacock_A15_Spread feathers"
+		},
 		"70c1c2f87a1e445c81b01db9d1d33c9f": {
 		},
 		"73b9420a21f742ec908c3abf9df3f40a": {
@@ -549,15 +709,18 @@
 			"source": "file://./3D Models/marker.glb"
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
-			"developerToken": "d9d150c990cf2d0e39a60981453c2ab1ba5d6b3d1d86a556c8e7d8e6a81c0647",
-			"mapID": "147456",
-			"previewType": "GLB",
+			"developerToken": "51ad3887c8048c53e0460e6fd9e443f6d96a4e43fcb044fa9a2d69f971a5159d",
+			"mapID": "147194",
+			"previewType": "DensePLY",
 			"showPreviewAtRuntime": false
 		},
 		"ad45d1a5acda48c69755ecab561a19b7": {
 		},
 		"b2bed9100d304718a43e7caed392a228": {
 			"source": "file://./3D Models/marker.glb"
+		},
+		"bfdf8fcf7d5a45948ad17dc9b1039211": {
+			"name": "Peacock_A15_Idle"
 		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"source": "file://./3D Models/marker.glb"
@@ -566,6 +729,9 @@
 			"activateAtStart": true
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
+		},
+		"f3bcc0f707b1459c991dd232a635b1e2": {
+			"name": "Peacock_A15_Walk"
 		}
 	},
 	"entityPropOverrides": {
@@ -637,6 +803,8 @@
 				"px"
 			]
 		},
+		"0fc6823e2238490499ed99485e57751a": {
+		},
 		"23a0093e086a47b0b31edc05a01beda8-0": {
 			"apiKey": "est_eAmjsW34zqI3S_fQxNXi0JNrjkuk7X1MAkCZDq_hQjg",
 			"characterId": "e8bb0cea-baf1-4ff6-bf73-a597ae20c83e",
@@ -658,9 +826,9 @@
 		},
 		"3c9d24ff852b4831ad43edc516f2918a": {
 			"position": [
-				1.2481831216885402,
+				1.0693814567613247,
 				-1.6,
-				-3.0902652974878038
+				0.40757071705039927
 			]
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
@@ -686,6 +854,11 @@
 			],
 			"visible": true
 		},
+		"673fa75cb9bf440cbf1a9e8feae68855": {
+			"weight": 1
+		},
+		"6f84c31dfc5b4a6a8a352f88698c441b": {
+		},
 		"70c1c2f87a1e445c81b01db9d1d33c9f": {
 		},
 		"73b9420a21f742ec908c3abf9df3f40a": {
@@ -706,9 +879,9 @@
 		},
 		"9ad0055394464bc295613f07657950d9": {
 			"position": [
-				0.4285723010537721,
+				-0.6533781428469716,
 				-1.6,
-				0.15981452074736868
+				2.112616739393313
 			]
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
@@ -723,16 +896,18 @@
 		},
 		"b2bed9100d304718a43e7caed392a228": {
 			"position": [
-				2.7598912902360198,
+				-2.817766748857821,
 				-1.6,
-				2.217414721577774
+				-0.7629869678279171
 			]
+		},
+		"bfdf8fcf7d5a45948ad17dc9b1039211": {
 		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"position": [
-				4.226372396516943,
+				-0.7780399172551515,
 				-1.6,
-				-1.3537315954720461
+				-1.7460118749476146
 			]
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
@@ -745,6 +920,8 @@
 			"proximityRadius": 1.8,
 			"turnSpeed": 0.8,
 			"walkSpeed": 0.5
+		},
+		"f3bcc0f707b1459c991dd232a635b1e2": {
 		},
 		"root": {
 			"position": [

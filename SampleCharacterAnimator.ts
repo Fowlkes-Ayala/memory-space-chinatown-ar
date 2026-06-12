@@ -2,7 +2,7 @@ import { Component, Behavior, ContextManager, Observable, started } from "@zcomp
 import { EstuaryClient } from "@estuary-ai/sdk";
 import type { CharacterAction, InterruptData } from "@estuary-ai/sdk";
 import type { default as SceneType } from "./Scene.zcomp";
-import { Vector3, Quaternion, Object3D, MathUtils } from "three";
+import { Vector3, Quaternion, Object3D, MathUtils, AnimationMixer, AnimationAction, AnimationClip, LoopOnce, LoopRepeat } from "three";
 
 type AnimationState = "notEngaged" | "approaching" | "isConversating";
 
@@ -190,28 +190,35 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	// ─── Animation / crossfade ───────────────────────────────────────
 
-	// Maps semantic behaviours to the actual scene animation layer+clip names.
-	// (These come straight from Scene.zcomp.d.ts — note the irregular layer
-	//  names like "Peacock_A15_" for the preen clip.)
+	// Semantic-name → GLTF animation clip name. These are STREAM tracks (GLTF skeletal
+	// animations); @zcomponent stream tracks are play/pause/stop ONLY — no weight, no
+	// real fade (see streamtrack.js `_applyState`). So we DON'T crossfade through the
+	// @zcomponent layer; we drive the underlying THREE.AnimationMixer actions directly
+	// (weighted fadeIn/fadeOut), the standard way to blend skeletal animations. The
+	// @zcomponent layer is kept empty so it never double-drives these same actions.
 	//   display = full tail spread (rare, deliberate "showing off")
 	//   shake   = quick feather ruffle/shake (common little comfort beat)
-	private static readonly _ANIM: Record<AnimKey, { layer: string; clip: string }> = {
-		walk:    { layer: "Peacock_A15_Walk",             clip: "Peacock_A15_Walk" },
-		idle:    { layer: "Peacock_A15_Idle",             clip: "Peacock_A15_Idle" },
-		preen:   { layer: "Peacock_A15_",                 clip: "Peacock_A15_licking_feathers" },
-		shake:   { layer: "Peacock_A15_Spread_feathers2", clip: "Peacock_A15_Spread_feathers2" },
-		display: { layer: "Peacock_A15_Spread_feathers",  clip: "Peacock_A15_Spreadfeathers" },
+	// Match is by normalized name, so editor spaces/underscores ("Spread feathers2")
+	// vs the @zcomponent script-name ("Spreadfeathers2") don't matter.
+	private static readonly _LAYER = "PeacockAnimations";
+	private static readonly _ANIM: Record<AnimKey, string> = {
+		walk:    "Peacock_A15_Walk",
+		idle:    "Peacock_A15_Idle",
+		preen:   "Peacock_A15_licking_feathers",
+		shake:   "Peacock_A15_Spreadfeathers2",
+		display: "Peacock_A15_Spreadfeathers",
 	};
 
-	private _currentAnimKey: AnimKey | null = null;
-	private _playingClips: any[] = [];
+	// THREE.AnimationMixer actions resolved from the Peacock_glb GLTF, keyed by AnimKey.
+	private _mixer: AnimationMixer | null = null;
+	private _actions: Partial<Record<AnimKey, AnimationAction>> = {};
+	private _currentAction: AnimationAction | null = null;
+	// The GLB loads async — a _setAnim call before the mixer is ready is stashed here and
+	// replayed the moment the mixer resolves. Cleanup unsubscribes the mixer listener.
+	private _pendingAnim: { key: AnimKey; opts: { loop?: boolean; speed?: number; force?: boolean } } | null = null;
+	private _mixerListenerCleanup: (() => void) | null = null;
 
-	// Pending hard-clears of faded-out layers. After a cross-layer fade-out we can't
-	// trust the engine's internal queue cleanup to fully release the layer (observed:
-	// preen/display poses staying partially weighted, bleeding over the walk). So once
-	// the blend window has elapsed we force the layer empty ourselves, on our own RAF
-	// clock (ms, same DOMHighResTimeStamp as requestAnimationFrame).
-	private _pendingFadeClears: Array<{ layer: any; clearAt: number }> = [];
+	private _currentAnimKey: AnimKey | null = null;
 
 	// Natural clip durations (seconds) — used to schedule one-shot follow-ups.
 	private readonly _PREEN_DURATION_S = 6.53;
@@ -385,6 +392,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 		this._createDebugOverlay();
 		this._clearAllAnimLayersAtStartup();
+		this._resolveMixer();
 		this._enterNotEngaged();
 		this._lastTime = performance.now();
 		this._animFrameId = requestAnimationFrame(this._animateFrame);
@@ -412,91 +420,125 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	// ─── Animation helpers ───────────────────────────────────────────
 
 	/**
-	 * Crossfades to a semantic animation. Every clip lives on its own separate layer,
-	 * so blending between clips requires a two-sided operation:
+	 * Resolves the THREE.AnimationMixer + one AnimationAction per AnimKey from the
+	 * Peacock_glb GLTF component. `mixer.clipAction(clip)` returns the SAME cached action
+	 * the @zcomponent stream wrapper holds, so we end up driving the exact actions the
+	 * mixer ticks each frame (GLTF.js ticks `mixer.update` via useOnBeforeRender).
 	 *
-	 *   Fade IN:  play() with {fade} on the incoming clip — the layer's
-	 *             computePathProperty interpolates from valueBefore (the output of
-	 *             all earlier layers, which includes the outgoing clip's pose) to
-	 *             this clip's pose over crossfadeTime.
+	 * IMPORTANT: we leave each action's base `weight` at 1 and silence it with stop()
+	 * (deactivate), NOT setEffectiveWeight(0). Effective weight in THREE is
+	 * `weight * fadeInterpolant`; fadeIn()/fadeOut() animate only the interpolant. If we
+	 * zeroed the base weight, fadeIn would compute `0 * interpolant = 0` forever — the
+	 * action would advance ("run", time climbing) but never become visible. stop() removes
+	 * it from the mixer's active set so it contributes nothing while keeping weight=1.
+	 */
+	private _resolveMixer(): void {
+		const gltf = (this._rootScene as any)?.nodes?.Peacock_glb;
+		if (!gltf?.mixer) { this._logDebugEvent("mixer: Peacock_glb node not found"); return; }
+
+		// Resolve actions once the mixer + clips exist. The GLB loads async, so subscribe
+		// to the mixer Observable (callImmediately:true handles the already-loaded case)
+		// and resolve on the firing where the value is present.
+		const onMixer = () => {
+			const mixer = gltf?.mixer?.value as AnimationMixer | undefined;
+			const clips = gltf?.animationClips?.value as Map<string, AnimationClip> | undefined;
+			if (!mixer || !clips || clips.size === 0) return;
+
+			const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+			const byNorm = new Map<string, AnimationClip>();
+			for (const [name, clip] of clips) byNorm.set(norm(name), clip);
+
+			let found = 0;
+			for (const key of Object.keys(SampleCharacterAnimator._ANIM) as AnimKey[]) {
+				const clip = byNorm.get(norm(SampleCharacterAnimator._ANIM[key]));
+				if (!clip) { this._logDebugEvent(`mixer: no clip for ${key}`); continue; }
+				const action = mixer.clipAction(clip);
+				action.stop(); // deactivate (contributes nothing); keeps base weight=1 so fadeIn works
+				this._actions[key] = action;
+				found++;
+			}
+			this._mixer = mixer;
+			this._logDebugEvent(`mixer: resolved ${found}/5 actions`);
+
+			// Stop listening and play whatever the state machine asked for while we waited.
+			this._mixerListenerCleanup?.();
+			this._mixerListenerCleanup = null;
+			if (this._pendingAnim) {
+				const p = this._pendingAnim;
+				this._pendingAnim = null;
+				this._setAnim(p.key, p.opts);
+			}
+		};
+
+		gltf.mixer.addListener(onMixer, undefined, true);
+		this._mixerListenerCleanup = () => { try { gltf.mixer.removeListener(onMixer); } catch { /* noop */ } };
+	}
+
+	/**
+	 * Crossfades to a semantic animation by driving the THREE.AnimationMixer actions
+	 * directly with weighted fades — NOT through the @zcomponent layer.
 	 *
-	 *   Fade OUT: layer.setActive(null, {fade}) on the outgoing clip's layer
-	 *             (_fadeOutClip) — the engine queues a null entry after the active
-	 *             clip and blends the clip's current pose → valueBefore (transparent)
-	 *             over the same window. The old clip keeps playing (no frame-0 snap)
-	 *             and is cleaned up by the layer's own tick() once the fade is done.
-	 *
-	 * This approach works regardless of layer evaluation order and avoids both snaps
-	 * that plagued the previous stop()-after-timeout strategy.
+	 * Why: these are GLTF stream tracks, and @zcomponent stream tracks have no weight or
+	 * fade — only play/pause/stop (streamtrack.js `_applyState`). "Fading" through a layer
+	 * left both actions at full weight during the overlap, then PAUSED the outgoing one,
+	 * freezing its pose in the mixer at weight 1 — that was the stiff, half-expressed walk
+	 * after a one-shot. Here we instead ramp the outgoing action's weight 1→0 and the
+	 * incoming 0→1 over crossfadeTime (action.fadeOut/fadeIn), the standard skeletal
+	 * crossfade. Anything not `next` is faded to zero too, so no pose can ever linger.
 	 */
 	private _setAnim(key: AnimKey, opts: { loop?: boolean; speed?: number; force?: boolean } = {}): void {
 		const loop = opts.loop ?? false;
-		// Don't restart a looping animation that's already the current one — that
-		// would snap it back to frame 0 every call and kill the looping motion.
-		if (!opts.force && loop && key === this._currentAnimKey) return;
+		const speed = opts.speed ?? 1;
+		if (!this._mixer) {
+			// GLB still loading — remember the latest request; _resolveMixer replays it.
+			this._pendingAnim = { key, opts };
+			this._currentAnimKey = key;
+			this._debugLastAnimPath = `pending (mixer loading): ${key}`;
+			return;
+		}
+		const next = this._actions[key];
+		if (!next) { this._debugLastAnimPath = `NO ACTION: ${key}`; return; }
 
-		const { layer, clip: clipName } = SampleCharacterAnimator._ANIM[key];
-		const clip = this._getClip(layer, clipName);
-		if (!clip) {
-			this._debugLastAnimPath = `NOT FOUND: ${layer}.${clipName}`;
+		const prev = this._currentAction;
+		const fadeSec = Math.max(0, this.crossfadeTime.value);
+
+		// Already looping this clip — don't restart (frame-0 snap), but allow live speed
+		// changes (e.g. the slowed approach walk).
+		if (!opts.force && loop && key === this._currentAnimKey && prev === next) {
+			next.setEffectiveTimeScale(speed);
 			return;
 		}
 
-		const fadeTime = Math.max(0, this.crossfadeTime.value);
-		// Speed is passed through play() — clip.timeScale doesn't exist on LayerClip.
-		clip.play({ loop, speed: opts.speed ?? 1, fade: fadeTime > 0 ? { time: fadeTime } : undefined });
-		this._debugLastAnimPath = `${key} → ${layer}`;
+		next.setLoop(loop ? LoopRepeat : LoopOnce, loop ? Infinity : 1);
+		next.clampWhenFinished = !loop;
+		next.setEffectiveTimeScale(speed);
+		next.reset();   // enabled=true, time→0, clears any pending fade; base weight stays 1
+		next.play();    // (re)activate in the mixer's blend set
+
+		// NOTE: only the fade INTERPOLANT is animated by fadeIn/fadeOut; base weight must
+		// stay 1 (effective = weight * interpolant). Never setEffectiveWeight(0) on an
+		// action we'll fade back in — use stop() to silence (deactivate) instead.
+		if (prev && prev !== next && fadeSec > 0) {
+			prev.fadeOut(fadeSec);
+			next.fadeIn(fadeSec);
+		} else {
+			next.setEffectiveWeight(1); // instant full pose (no prev / no fade / restart)
+			if (prev && prev !== next) prev.stop();
+		}
+
+		// Belt-and-braces: silence every other action (e.g. a one-shot that ended and
+		// clamped at weight 1, or a stale fade) so nothing bleeds into the new pose.
+		for (const k of Object.keys(this._actions) as AnimKey[]) {
+			const a = this._actions[k as AnimKey];
+			if (!a || a === next || a === prev) continue;
+			if (a.getEffectiveWeight() > 0.0001 || a.isRunning()) {
+				if (fadeSec > 0) a.fadeOut(fadeSec); else a.stop();
+			}
+		}
+
 		this._currentAnimKey = key;
-
-		// Simultaneously fade out every clip that was playing before this one.
-		const outgoing = this._playingClips.filter(c => c !== clip);
-		this._playingClips = [clip];
-		for (const c of outgoing) {
-			try { this._fadeOutClip(c, fadeTime); } catch { /* internal API — tolerate version differences */ }
-		}
-	}
-
-	/**
-	 * Fades the given clip's layer out to fully transparent over `fadeTime`, without
-	 * snapping to frame 0.
-	 *
-	 * This delegates to the engine's `layer.setActive(null, { fade })` — the exact call
-	 * Mattercraft's own ToggleLayerClips behavior uses to fade a layer out. It queues a
-	 * null entry after the layer's current active clip (so the old pose blends out to
-	 * `valueBefore` over the window, no frame-0 snap) AND splices the queue clean first,
-	 * so repeated settle→walk cycles don't pile up stale entries. A previous hand-rolled
-	 * version pushed onto layer._queue directly without that splice; the orphaned null
-	 * entries it left behind eventually wedged tick()'s cleanup and froze the layer on a
-	 * partially-weighted pose (preen head-tilt / half-raised tail bleeding over the walk).
-	 */
-	private _fadeOutClip(clip: any, fadeTime: number): void {
-		const layer = clip?.layer as any;
-		if (!layer || typeof layer.setActive !== "function") return;
-		const fade = fadeTime > 0 ? { time: fadeTime } : { time: 0, easing: null };
-		try { layer.setActive(null, { fade }); } catch { /* internal API — tolerate version differences */ }
-		// Guarantee the layer ends fully empty once the blend has finished. The +200ms
-		// margin keeps the hard-clear safely after the visible fade so it can't cut the
-		// blend short — by then the layer is already transparent, so clearing is invisible.
-		const clearAt = performance.now() + Math.max(0, fadeTime) * 1000 + 200;
-		this._pendingFadeClears.push({ layer, clearAt });
-	}
-
-	/**
-	 * Force-empties any faded-out layer whose blend window has elapsed, so no residual
-	 * partial weight can linger. Only clears a layer still showing our null fade sentinel
-	 * (layer.active == null); if a fresh clip has since taken the layer over, it's left
-	 * alone. Setting `layer.active = undefined` wipes the queue and re-evaluates the
-	 * influenced bones back to their base pose immediately.
-	 */
-	private _processFadeClears(now: number): void {
-		for (let i = this._pendingFadeClears.length - 1; i >= 0; i--) {
-			const pc = this._pendingFadeClears[i];
-			if (now < pc.clearAt) continue;
-			this._pendingFadeClears.splice(i, 1);
-			try {
-				if (pc.layer.active == null) pc.layer.active = undefined; // == also matches undefined
-			} catch { /* internal API — tolerate version differences */ }
-		}
+		this._currentAction = next;
+		this._debugLastAnimPath = `${key} xfade ${fadeSec.toFixed(2)}s${prev && prev !== next ? "" : prev === next ? " (restart)" : " (first)"}`;
 	}
 
 	/**
@@ -706,20 +748,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		return out;
 	}
 
-	/** Returns the raw clip object for timeScale manipulation, or null if not found. */
-	private _getClip(layerName: string, clipName: string): any | null {
-		const sceneClip = (this._rootScene as any)?.animation?.layers?.[layerName]?.clips?.[clipName];
-		if (sceneClip) return sceneClip;
-		const behaviors = (this._rootScene as any)?.nodes?.Peacock_glb?.behaviors;
-		if (behaviors) {
-			for (const key of Object.keys(behaviors)) {
-				const clip = behaviors[key]?.layers?.[layerName]?.clips?.[clipName];
-				if (clip) return clip;
-			}
-		}
-		return null;
-	}
-
 	// ─── Animation loop ──────────────────────────────────────────────
 
 	private _animateFrame = (time: number): void => {
@@ -734,7 +762,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		const obj = this._obj;
 
 		this._updateDebugOverlay(time);
-		if (this._pendingFadeClears.length > 0) this._processFadeClears(time);
 
 		switch (this._state) {
 			case "notEngaged": {
@@ -1393,8 +1420,9 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					"padding:8px 12px",
 					"border-radius:5px",
 					"pointer-events:auto",
-					"min-width:240px",
-					"max-width:340px",
+					"width:300px",
+					"overflow-wrap:break-word",
+					"word-break:break-all",
 					"margin-top:65px",
 				].join(";");
 
@@ -1432,7 +1460,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 					headerEl.style.cssText = headerStyle;
 					headerEl.textContent = `${defaultCollapsed ? "▶" : "▼"} ${name}`;
-					sectionContent.style.cssText = `white-space:pre;padding-top:2px${defaultCollapsed ? ";display:none" : ""}`;
+					sectionContent.style.cssText = `white-space:pre-wrap;overflow-wrap:break-word;word-break:break-all;padding-top:2px${defaultCollapsed ? ";display:none" : ""}`;
 
 					const entry = { contentEl: sectionContent, collapsed: defaultCollapsed };
 					this._debugSections.set(name, entry);
@@ -1567,58 +1595,37 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// ── Animation section ────────────────────────────────────────────
 		const animEntry = this._debugSections.get("Animation");
 		if (animEntry && !animEntry.collapsed) {
-			// Enumerate EVERY layer the animation system has — not just the 5 we drive.
-			// A residual pose has to come from *some* layer contributing weight; if it
-			// isn't one of ours, it's an untracked layer (a GLB rest/base clip, an
-			// auto-play, a duplicate) and that's exactly what this surfaces. Each row:
-			//   name  active-state  q:queue  ip:influencedPaths  clip-playback-flags
-			// Flags decode the LayerClip Observables (layerclip.js): p=playing, a=active,
-			// st=StreamState. A layer marked "·" (inactive) but whose clip still reports
-			// p/a, or a non-ours layer that is ACTIVE, is the bleed source.
-			const ours = new Set(Object.values(SampleCharacterAnimator._ANIM).map(a => a.layer));
-			const layerRows: string[] = [];
-			for (const { name, layer: lyr } of this._collectAllAnimLayers()) {
-				const active = lyr.active; // LayerClip | null | undefined
-				let mark: string;
-				if (active === undefined)    mark = "·";
-				else if (active === null)    mark = "fade→clr";
-				else                        mark = "ACTIVE";
-
-				const qLen: number = (lyr as any)?._queue?.length ?? -1;
-				const ipCount: number = (() => { try { return lyr.influencedPaths?.size ?? -1; } catch { return -1; } })();
-
-				// Decode the active clip's live playback flags (the per-clip Observables).
-				let flags = "";
-				if (active) {
-					const p  = active.playing?.value ? "p" : "·";
-					const a  = active.active?.value  ? "a" : "·";
-					const st = active.state?.value ?? "?";
-					flags = ` [${p}${a} ${st}]`;
-				}
-
-				// Does this layer actually contribute to the pose right now? (queue holds
-				// any entry with a real clip). A "true" here while name isn't walk/idle is
-				// the residual-weight smoking gun.
-				const q: any[] = (lyr as any)?._queue ?? [];
-				const contributing = q.some(e => e?.layerClip != null);
-
-				const tag = ours.has(name) ? "" : " ★UNTRACKED";
-				const contribMark = contributing ? " ⚠weight" : "";
-				layerRows.push(`  ${name}: ${mark} q:${qLen} ip:${ipCount}${flags}${contribMark}${tag}`);
+			// We drive THREE.AnimationMixer actions directly (not the @zcomponent layer).
+			// One row per action with its live effective WEIGHT — this is the actual pose
+			// contribution. During a crossfade you'll see two rows with weights summing to
+			// ~1; at rest exactly one row at 1.00 and all others 0.00. Any non-current row
+			// stuck above 0 is the bleed source.
+			const rows: string[] = [];
+			for (const key of Object.keys(SampleCharacterAnimator._ANIM) as AnimKey[]) {
+				const a = this._actions[key];
+				if (!a) { rows.push(`  ${key}: — no action —`); continue; }
+				const w = a.getEffectiveWeight();
+				const bar = "█".repeat(Math.round(w * 8)).padEnd(8, "·");
+				const cur = key === this._currentAnimKey ? "►" : " ";
+				const st = a.isRunning() ? "run" : (a.paused ? "pause" : "stop");
+				rows.push(`${cur} ${key}: ${bar} ${w.toFixed(2)} ${st} t:${a.time.toFixed(2)}`);
 			}
 
-			const pcNames = this._playingClips.map((c: any) => c?.id ?? "?").join(", ") || "—";
+			// Sanity check the @zcomponent layer stays EMPTY — if it ever goes ACTIVE it's
+			// double-driving these same actions and will fight the mixer crossfade.
+			const lyr = (this._rootScene as any)?.animation?.layers?.[SampleCharacterAnimator._LAYER];
+			const layerState = !lyr ? "—"
+				: lyr.active === undefined ? "empty ✓"
+				: lyr.active === null ? "fade→clr"
+				: "ACTIVE ⚠ FIGHTING";
 
 			animEntry.contentEl.innerHTML = [
 				`currentKey: ${this._currentAnimKey ?? "—"}`,
 				`lastPlay:   ${this._debugLastAnimPath}`,
-				`playingClips[${this._playingClips.length}]: ${pcNames}`,
-				`fadeTime:   ${this.crossfadeTime.value.toFixed(2)}s`,
-				`fadeClears: ${this._pendingFadeClears.length} pending`,
-				`layersTotal: ${layerRows.length}`,
+				`mixer: ${this._mixer ? "ready" : "NULL ⚠"}   xfade:${this.crossfadeTime.value.toFixed(2)}s   layer:${layerState}`,
 				"",
-				"layers (active q:queue ip:paths [flags] weight):",
-				...layerRows,
+				"actions (► current · weight bar · state · t:time):",
+				...rows,
 			].join("<br>");
 		}
 
@@ -1675,6 +1682,12 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 		this._clearConversatingTimers();
 		this._clearPatrolTimers();
+		if (this._mixerListenerCleanup) {
+			this._mixerListenerCleanup();
+			this._mixerListenerCleanup = null;
+		}
+		// Stop our actions so they don't keep contributing a frozen pose after teardown.
+		for (const a of Object.values(this._actions)) { try { a?.stop(); } catch { /* noop */ } }
 		if (this._clientPollInterval !== null) {
 			clearInterval(this._clientPollInterval);
 			this._clientPollInterval = null;

@@ -11,10 +11,11 @@ import { ImmersalAnchorGroup as ImmersalAnchorGroup_7 } from "@zcomponent/immers
 import { GLTF as GLTF_8 } from "@zcomponent/three/lib/components/models/GLTF";
 import { SampleCharacterAnimator as SampleCharacterAnimator_9 } from "./SampleCharacterAnimator";
 import { FixGLTFMaterials as FixGLTFMaterials_10 } from "./FixGLTFMaterials";
-import { ShadowPlane as ShadowPlane_11 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
-import { WorldTracker as WorldTracker_12 } from "@zcomponent/zappar-three/lib/components/trackers/WorldTracker";
-import { WorldTrackingUI as WorldTrackingUI_13 } from "@zcomponent/zappar-three/lib/components/WorldTrackingUI";
-import { ZapparCamera as ZapparCamera_14 } from "@zcomponent/zappar-three/lib/components/cameras/Camera";
+import { Animation as Animation_11 } from "@zcomponent/three/lib/behaviors/Animation";
+import { ShadowPlane as ShadowPlane_12 } from "@zcomponent/three/lib/components/meshes/ShadowPlane";
+import { WorldTracker as WorldTracker_13 } from "@zcomponent/zappar-three/lib/components/trackers/WorldTracker";
+import { WorldTrackingUI as WorldTrackingUI_14 } from "@zcomponent/zappar-three/lib/components/WorldTrackingUI";
+import { ZapparCamera as ZapparCamera_15 } from "@zcomponent/zappar-three/lib/components/cameras/Camera";
 
 interface ConstructorProps {
 
@@ -80,24 +81,34 @@ declare class Comp extends ZComponent {
 				0: SampleCharacterAnimator_9,
 				1: FixGLTFMaterials_10,
 				FixGLTFMaterials: FixGLTFMaterials_10,
+				2: Animation_11,
+				Peacock_A15_Idle0: Animation_11,
+				3: Animation_11,
+				Peacock_A15_Spreadfeathers: Animation_11,
+				4: Animation_11,
+				Peacock_A15_LickingFeathers: Animation_11,
+				5: Animation_11,
+				Peacock_A15_SpreadFeathers2: Animation_11,
+				6: Animation_11,
+				Peacock_A15_Walk: Animation_11,
 			}
 		},
-		ShadowPlane: ShadowPlane_11 & {
+		ShadowPlane: ShadowPlane_12 & {
 			behaviors: {
 
 			}
 		},
-		WorldTracker: WorldTracker_12 & {
+		WorldTracker: WorldTracker_13 & {
 			behaviors: {
 
 			}
 		},
-		WorldTrackingUI: WorldTrackingUI_13 & {
+		WorldTrackingUI: WorldTrackingUI_14 & {
 			behaviors: {
 
 			}
 		},
-		ZapparCamera: ZapparCamera_14 & {
+		ZapparCamera: ZapparCamera_15 & {
 			behaviors: {
 
 			}
@@ -125,20 +136,12 @@ declare class Comp extends ZComponent {
 	};
 
 	animation: Animation & { layers: {
-		Peacock_A15_: Layer & { clips: {
-			Peacock_A15_licking_feathers: LayerClip;
-		}};
-		Peacock_A15_Idle: Layer & { clips: {
+		PeacockAnimations: Layer & { clips: {
 			Peacock_A15_Idle: LayerClip;
-		}};
-		Peacock_A15_Walk: Layer & { clips: {
-			Peacock_A15_Walk: LayerClip;
-		}};
-		Peacock_A15_Spread_feathers: Layer & { clips: {
+			Peacock_A15_licking_feathers: LayerClip;
 			Peacock_A15_Spreadfeathers: LayerClip;
-		}};
-		Peacock_A15_Spread_feathers2: Layer & { clips: {
-			Peacock_A15_Spread_feathers2: LayerClip;
+			Peacock_A15_Spreadfeathers2: LayerClip;
+			Peacock_A15_Walk: LayerClip;
 		}};
 	}};
 
