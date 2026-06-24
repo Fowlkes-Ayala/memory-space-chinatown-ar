@@ -137,11 +137,11 @@ declare class Comp extends ZComponent {
 
 	animation: Animation & { layers: {
 		PeacockAnimations: Layer & { clips: {
-			Peacock_A15_Idle: LayerClip;
 			Peacock_A15_licking_feathers: LayerClip;
 			Peacock_A15_Spreadfeathers: LayerClip;
 			Peacock_A15_Spreadfeathers2: LayerClip;
 			Peacock_A15_Walk: LayerClip;
+			Peacock_A15_Idle: LayerClip;
 		}};
 	}};
 

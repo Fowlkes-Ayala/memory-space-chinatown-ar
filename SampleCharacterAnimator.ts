@@ -22,7 +22,7 @@ interface ConstructionProps {
 	proximityRadius?: number;
 	conversatingTimeout?: number;
 	turnSpeed?: number;
-	openingLine?: string;
+	introductionPrompt?: string;
 	crossfadeTime?: number;
 	displayChance?: number;
 	noticeDuration?: number;
@@ -97,9 +97,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	public conversatingLickingWeight = new Observable<number>(1.0);
 
 	/**
-	 * Relative likelihood of expressive feather movement during conversation —
-	 * mostly a quick feather-shake, occasionally a full tail display for emphasis
-	 * (the full display is further gated by displayChance).
+	 * Relative likelihood of a full tail display during conversation, as an
+	 * occasional flourish for emphasis (further gated by displayChance).
 	 * @zui
 	 * @zdefault 1.0
 	 */
@@ -130,13 +129,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	public turnSpeed = new Observable<number>(3.0);
 
 	/**
-	 * Scripted opening line spoken (via Estuary's "say line" / TTS) the first time
-	 * the character greets a viewer.
+	 * Prompt sent to the character (via Estuary's `sendText`, not a scripted line) the
+	 * first time it greets a viewer — the character's LLM generates its own introduction
+	 * from this instruction rather than speaking fixed, prewritten text.
 	 * @zui
-	 * @zdefault "Walk softly, and look down. Fourteen feet below, the bones of Old Chinatown were sealed. Beneath the concrete and the ballast and the rails, Peacock Alley still lies."
+	 * @zdefault "A visitor has just walked up to you for the first time. Introduce yourself and welcome them, in character, in a sentence or two."
 	 */
-	public openingLine = new Observable<string>(
-		"Walk softly, and look down. Fourteen feet below, the bones of Old Chinatown were sealed. Beneath the concrete and the ballast and the rails, Peacock Alley still lies."
+	public introductionPrompt = new Observable<string>(
+		"A visitor has just walked up to you for the first time. Introduce yourself and welcome them, in character, in a sentence or two."
 	);
 
 	/**
@@ -180,6 +180,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _clientPollInterval: ReturnType<typeof setInterval> | null = null;
 	private _client: EstuaryClient | null = null;
 	private _inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+	// Guards against the Estuary SDK's audioPlaybackComplete misfiring: internally it infers
+	// "complete" from a fixed ~300ms gap with no new audio chunks (AudioPlayer.DRAIN_DELAY_MS),
+	// not a real end-of-utterance signal — a slow TTS chunk during a long sentence can trip
+	// it mid-speech, immediately followed by another audioPlaybackStarted for the same
+	// utterance. So "complete" is held for _AUDIO_COMPLETE_GUARD_MS (just over that internal
+	// delay) before we act on it; a started arriving in that window cancels it as spurious.
+	private _audioCompleteGuardTimer: ReturnType<typeof setTimeout> | null = null;
+	private readonly _AUDIO_COMPLETE_GUARD_MS = 400;
 
 	// Bound event handlers for cleanup
 	private _boundOnCharacterAction: ((action: CharacterAction) => void) | null = null;
@@ -333,7 +341,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		if (constructorProps.proximityRadius !== undefined) this.proximityRadius.value = constructorProps.proximityRadius;
 		if (constructorProps.conversatingTimeout !== undefined) this.conversatingTimeout.value = constructorProps.conversatingTimeout;
 		if (constructorProps.turnSpeed !== undefined) this.turnSpeed.value = constructorProps.turnSpeed;
-		if (constructorProps.openingLine !== undefined) this.openingLine.value = constructorProps.openingLine;
+		if (constructorProps.introductionPrompt !== undefined) this.introductionPrompt.value = constructorProps.introductionPrompt;
 		if (constructorProps.crossfadeTime !== undefined) this.crossfadeTime.value = constructorProps.crossfadeTime;
 		if (constructorProps.displayChance !== undefined) this.displayChance.value = constructorProps.displayChance;
 		if (constructorProps.noticeDuration !== undefined) this.noticeDuration.value = constructorProps.noticeDuration;
@@ -842,9 +850,26 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					// viewer so it glides to a stop at conversation distance rather than into
 					// their face. The notice beat just turned the body in place, so the steer
 					// re-seeds its heading from that facing before stepping.
-					this._setAnim("walk", { loop: true });
 					const f = (dist - greetDist) / dist;
-					this._steerAndMove(obj, obj.position.x + dx * f, obj.position.z + dz * f, dt, this.walkSpeed.value);
+					const targetDist = this._steerAndMove(
+						obj, obj.position.x + dx * f, obj.position.z + dz * f, dt, this.walkSpeed.value);
+
+					// The steer DECELERATES onto that greetDist-short point, so it brakes to a
+					// near-halt right around viewer-dist ≈ greetDist. If it stops a hair outside
+					// greetDist the `dist <= greetDist` check above never flips — so also arrive
+					// once the steer has reached its own target, regardless of the exact
+					// viewer-distance crossing. Otherwise it would stand here forever playing
+					// the walk cycle in place.
+					if (targetDist <= this._ARRIVE_DIST) {
+						this._enterConversating(this._greetOnArrival);
+						break;
+					}
+
+					// Drive the gait from actual motion: only play the walk cycle while it is
+					// genuinely moving or turning, never in place once it has braked to a stop.
+					const moving = this._speed > 0.05;
+					const turning = Math.abs(this._debugHeadingErrDeg) > 6;
+					this._setAnim(moving || turning ? "walk" : "idle", { loop: true });
 				}
 				break;
 			}
@@ -899,6 +924,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _onAudioPlaybackStarted(): void {
 		this._logSdkEvent("audioPlaybackStarted");
+		// A started arriving while a complete is still held in its guard window means that
+		// "complete" was spurious (the SDK's gap-based drain heuristic, not a real end of
+		// speech) — drop it so we never acted on it.
+		if (this._audioCompleteGuardTimer !== null) {
+			clearTimeout(this._audioCompleteGuardTimer);
+			this._audioCompleteGuardTimer = null;
+			this._logSdkEvent("  → cancelled spurious pending complete");
+		}
 		this._isSpeaking = true;
 		// Cancel any running inactivity timer — the character cannot be idle while speaking.
 		// This is the hard guard: no matter what started the timer (interrupt, greet fallback,
@@ -922,13 +955,21 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	}
 
 	private _onAudioPlaybackComplete(): void {
-		this._logSdkEvent("audioPlaybackComplete");
-		this._isSpeaking = false;
-		if (this._state === "isConversating") {
-			// Switch to the calmer "listening" palette and start the silence countdown.
-			if (!this._isTurning) this._pickConversatingAnim();
-			this._resetInactivityTimer("audioPlaybackComplete");
-		}
+		this._logSdkEvent("audioPlaybackComplete (pending guard)");
+		// Don't act immediately — hold it for _AUDIO_COMPLETE_GUARD_MS in case it's spurious
+		// (see field comment). _onAudioPlaybackStarted cancels this timer if speech resumes
+		// within the window; only once it fires unchallenged do we treat speech as truly over.
+		if (this._audioCompleteGuardTimer !== null) clearTimeout(this._audioCompleteGuardTimer);
+		this._audioCompleteGuardTimer = setTimeout(() => {
+			this._audioCompleteGuardTimer = null;
+			this._logSdkEvent("audioPlaybackComplete (confirmed)");
+			this._isSpeaking = false;
+			if (this._state === "isConversating") {
+				// Switch to the calmer "listening" palette and start the silence countdown.
+				if (!this._isTurning) this._pickConversatingAnim();
+				this._resetInactivityTimer("audioPlaybackComplete");
+			}
+		}, this._AUDIO_COMPLETE_GUARD_MS);
 	}
 
 	private _onSttResponse(payload: { text: string; isFinal: boolean }): void {
@@ -973,12 +1014,15 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._state = "isConversating";
 
 		if (greet) {
-			const line = this.openingLine.value.trim();
-			if (line && this._client) {
-				this._client.sayLine(line);
-				this._logDebugEvent("spoke opening line");
+			const prompt = this.introductionPrompt.value.trim();
+			if (prompt && this._client) {
+				// sendText (not sayLine) routes through the character's LLM, so it
+				// generates its own introduction from this instruction rather than
+				// speaking back fixed, prewritten text. textOnly=false → TTS audio.
+				this._client.sendText(prompt, false);
+				this._logDebugEvent("sent introduction prompt");
 			} else {
-				console.log("SampleCharacterAnimator: Greeting viewer (no client/line)");
+				console.log("SampleCharacterAnimator: Greeting viewer (no client/prompt)");
 				this._resetInactivityTimer("greet-no-client-fallback");
 			}
 			// Timer starts in _onAudioPlaybackComplete so the silence counts down
@@ -1015,9 +1059,11 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	/**
 	 * Picks the next conversation animation. Distinguishes *speaking* (more
-	 * animated — expressive idle with the occasional feather-shake or full
-	 * display for emphasis) from *listening* (calmer — attentive idle with the
-	 * occasional patient preen). Tunable via the conversating* weight properties.
+	 * animated — expressive idle with the occasional full display for emphasis)
+	 * from *listening* (calmer — attentive idle with the occasional patient
+	 * preen). The feather-shake is deliberately NOT part of the conversation
+	 * palette (it's a wander-only comfort beat). Tunable via the conversating*
+	 * weight properties.
 	 */
 	private _pickConversatingAnim(): void {
 		const speaking = this._isSpeaking;
@@ -1025,18 +1071,15 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// Won't groom mid-sentence — preening is a calm listening-time comfort beat.
 		const preenW = Math.max(0, this.conversatingLickingWeight.value) * (speaking ? 0.1 : 1);
 		const expressW = Math.max(0, this.conversatingSpreadWeight.value);
-		// Split the "expressive" weight into a common little feather-shake and a
-		// rare, deliberate full display (gated further by displayChance).
+		// Full tail display, as a rare, deliberate flourish (gated by displayChance).
 		const displayW = expressW * (speaking ? 0.5 : 0.2) * Math.max(0, Math.min(1, this.displayChance.value * 3));
-		const shakeW = Math.max(0, expressW - displayW);
 
-		const total = idleW + preenW + shakeW + displayW;
+		const total = idleW + preenW + displayW;
 		let roll = Math.random() * (total || 1);
 
 		let key: AnimKey; let dur: number;
 		if (total === 0 || (roll -= idleW) < 0)      { key = "idle";    dur = this._CONVERSATING_IDLE_DURATION_S; }
 		else if ((roll -= preenW) < 0)               { key = "preen";   dur = this._PREEN_DURATION_S; }
-		else if ((roll -= shakeW) < 0)               { key = "shake";   dur = this._SHAKE_DURATION_S; }
 		else                                         { key = "display"; dur = this._DISPLAY_DURATION_S; }
 
 		const loop = key === "idle";
@@ -1679,6 +1722,10 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		if (this._inactivityTimer !== null) {
 			clearTimeout(this._inactivityTimer);
 			this._inactivityTimer = null;
+		}
+		if (this._audioCompleteGuardTimer !== null) {
+			clearTimeout(this._audioCompleteGuardTimer);
+			this._audioCompleteGuardTimer = null;
 		}
 		this._clearConversatingTimers();
 		this._clearPatrolTimers();

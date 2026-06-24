@@ -826,10 +826,11 @@
 		},
 		"3c9d24ff852b4831ad43edc516f2918a": {
 			"position": [
-				1.0693814567613247,
+				1.2094453915293357,
 				-1.6,
-				0.40757071705039927
-			]
+				0.20285036432066494
+			],
+			"visible": true
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
 		},
@@ -838,9 +839,9 @@
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
 			"enabled": true,
 			"position": [
-				1.6669573893476954,
+				2.815086967433861,
 				-1.636584507626377,
-				1.5698957632791073
+				0.4896916516493881
 			],
 			"rotation": [
 				0,
@@ -879,10 +880,11 @@
 		},
 		"9ad0055394464bc295613f07657950d9": {
 			"position": [
-				-0.6533781428469716,
+				-0.6249898195851089,
 				-1.6,
-				2.112616739393313
-			]
+				2.252863250288514
+			],
+			"visible": true
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
 			"visible": true,
@@ -896,24 +898,27 @@
 		},
 		"b2bed9100d304718a43e7caed392a228": {
 			"position": [
-				-2.817766748857821,
+				-2.998045629249712,
 				-1.6,
-				-0.7629869678279171
-			]
+				-0.5857844638078715
+			],
+			"visible": true
 		},
 		"bfdf8fcf7d5a45948ad17dc9b1039211": {
 		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"position": [
-				-0.7780399172551515,
+				-0.8144167184424891,
 				-1.6,
-				-1.7460118749476146
-			]
+				-1.9377819874949718
+			],
+			"visible": true
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
 			"originAnchor": "ImmersalAnchorGroup"
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
+			"conversatingSpreadWeight": 0.2,
 			"conversatingTimeout": 8,
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
