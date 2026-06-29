@@ -925,7 +925,7 @@
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
 			"proximityRadius": 1.8,
-			"showDebugOverlay": true,
+			"showDebugOverlay": false,
 			"turnSpeed": 0.8,
 			"walkSpeed": 0.5
 		},
