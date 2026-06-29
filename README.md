@@ -1,52 +1,43 @@
 # Estuary Mattercraft Template
 
-A [Mattercraft](https://docs.zap.works/mattercraft/) template for building voice-enabled WebAR characters powered by [Estuary](https://estuary-ai.com). Drop in your own 3D model, set your API key and character ID in the Properties panel, and publish.
-
-**Try the live demo**
-
-Scan with your phone to launch the [WebAR experience](https://webxr.run/bNalxng97ndnM)
-
-<p align="center">
-  <img src="estuary-mattercraft-template-qr.svg" alt="Scan to launch demo" width="200" />
-</p>
+A [Mattercraft](https://docs.zap.works/mattercraft/) WebAR project featuring a voice-enabled 3D peacock character powered by [Estuary](https://estuary-ai.com). The character patrols a defined area, notices and approaches nearby visitors, and holds spoken conversations using live microphone input and synthesized speech.
 
 ## Prerequisites
 
-- [Mattercraft](https://zap.works/mattercraft/) editor 
+- [Mattercraft](https://zap.works/mattercraft/) editor
 - An [Estuary](https://app.estuary-ai.com) account with:
   - An **API key** (starts with `est_`)
   - A **character ID** (created in the Estuary Configurator)
-- A 3D character model in `.glb` format (a sample model is included)
 
 ## Quick Start
 
 1. Open this project in Mattercraft
-2. Select the **EstuaryVoiceConnection** behavior on the **root Group** node
-3. In the Behavior panel, set your `apiKey` and `characterId`
-4. Click **Preview** to test the experience, you should be able to start speaking to your character
-5. Replace `3D Models/Axiom Wisp.glb` with your own character model
-6. Attach or modify **SampleCharacterAnimator** to trigger your character's animations using Estuary actions
-7. Publish when ready
+2. Select the **EstuaryVoiceConnection** behavior (on the root `Group` node) and set your `apiKey` and `characterId` in the Properties panel
+3. Click **Preview** — approach the peacock and start speaking to it
+4. Use the **debug skip button** (`#debugSkipButton`) to bypass the Estuary connection while iterating on animation/patrol behavior without an API key
+5. Publish when ready
 
 ## Project Structure
 
 ```
 estuary-mattercraft-template/
-├── index.ts                    # Entry point
-├── index.html                  # HTML shell (launch + mute)
-├── Scene.zcomp                 # Scene graph (JSON)
-├── Scene.zcomp.d.ts            # Scene type declarations
-├── EstuaryVoiceConnection.ts   # Voice connection behavior
-├── SampleCharacterAnimator.ts  # Character animation behavior
-└── 3D Models/
-    └── Axiom Wisp.glb          # Sample 3D character
+├── index.ts                     # Entry point — initializes the scene, wires debug skip button
+├── index.html                   # HTML shell (splash, launch button, mute button)
+├── Scene.zcomp                  # Scene graph (edit visually in Mattercraft)
+├── Scene.zcomp.d.ts             # Auto-generated scene type declarations
+├── EstuaryVoiceConnection.ts    # Estuary SDK connection + voice pipeline + VLM capture
+├── SampleCharacterAnimator.ts   # Peacock patrol AI, conversation state, animation blending
+├── ExampleSayLine.ts            # Example: scripted TTS lines via Estuary's "say line" feature
+├── FixGLTFMaterials.ts          # Fixes alphaMode BLEND transparency on GLB models
+├── TexturedMaterial.ts          # @zcomponent for runtime texture swapping on GLTF materials
+└── 3D Models/                   # Peacock GLB and marker models
 ```
 
 ## Behaviors
 
 ### EstuaryVoiceConnection
 
-The core behavior. Manages the Estuary SDK connection, voice pipeline, microphone mute, and camera capture.
+Attached to the root `Group` node. Manages the Estuary SDK client lifecycle, the voice pipeline (mic in / TTS out), and camera capture for Vision/VLM requests. Exposes the live `EstuaryClient` on `window.__estuaryClient` so other behaviors can subscribe to events without prop drilling.
 
 **Properties panel settings:**
 
@@ -54,10 +45,11 @@ The core behavior. Manages the Estuary SDK connection, voice pipeline, microphon
 |---|---|---|
 | `characterId` | Your Estuary character ID | `""` |
 | `apiKey` | Your Estuary API key (`est_...`) | `""` |
+| `serverUrl` | Estuary API server URL | `"https://api.estuary-ai.com"` |
 | `playerId` | Unique identifier for the end user | `"player-1"` |
 | `autoStartVoice` | Start voice automatically on connect | `true` |
 
-**Read-only state** (available to other behaviors):
+**Read-only state** (consumed by other behaviors):
 
 | Property | Description |
 |---|---|
@@ -66,109 +58,57 @@ The core behavior. Manages the Estuary SDK connection, voice pipeline, microphon
 | `isListening` | Whether the user is currently speaking |
 | `isMuted` | Whether the microphone is muted |
 
-**Public methods** for programmatic control:
-
-- `connect()` / `disconnect()` — manage connection
-- `startVoice()` / `stopVoice()` — manage voice pipeline
-- `toggleMute()` — toggle microphone
-- `sendText(text, textOnly?)` — send a text message
-- `interrupt(messageId?)` — interrupt the current response
-
 ### SampleCharacterAnimator
 
-An example behavior demonstrating how to animate a 3D model in response to Estuary events. Replace or extend this for your own character.
+Attached to the peacock GLTF node (`Peacock_glb`). Drives the character's full behavior loop:
 
-**Animations:**
+- **Patrol AI** — wanders within the polygon defined by `PatrolBoundary`'s child nodes, pausing for randomized intervals
+- **Proximity detection** — notices the visitor when they're within `proximityRadius` of the camera, turns to face them, and triggers an introduction via Estuary
+- **Conversation state** — while conversing, blends between idle/licking-feathers/spread-feathers animations using weighted randomization (`conversatingIdleWeight`, `conversatingLickingWeight`, `conversatingSpreadWeight`) and times out back to patrol after `conversatingTimeout` seconds of silence
+- **Animation blending** — crossfades GLTF clips by driving the underlying `THREE.AnimationMixer` actions directly (see [CLAUDE.md](CLAUDE.md) for why — `@zcomponent` stream tracks don't support weighted blending)
+- **Debug overlay** — renders live state (patrol position, distance to camera, current animation) to the `#DebugOverlay` HTML node, or an auto-created fallback if absent
 
-- **Idle bob** — gentle vertical oscillation
-- **Speak pulse** — scale and emissive glow when the AI speaks
-- **Swim-to-gaze** — moves toward camera during VLM capture requests
-- **Follow/return** — responds to `follow_user` / `stop_following_user` character actions
-- **Camera capture hide** — briefly hides during capture for clean VLM frames
+Key tunable properties (all exposed via `@zui` in the Properties panel): `patrolBoundaryParent`, `walkSpeed`, `turnSpeed`, `minPauseInterval`/`maxPauseInterval`, `minPauseDuration`/`maxPauseDuration`, `proximityRadius`, `conversatingTimeout`, `crossfadeTime`, `displayChance`, `noticeDuration`, `introductionPrompt`.
 
-All animation parameters (amplitude, speed, distances) are tunable via the Properties panel.
+### ExampleSayLine
 
-**Required character actions:** The sample animator listens for two character actions: `follow_user` and `stop_following_user`. You must add these actions to your character in the [Estuary Configurator](https://app.estuary-ai.com) for them to work.
+An optional example behavior showing how to script the character to speak prewritten lines via Estuary's `sayLine()` — text sent straight to TTS, bypassing the LLM, while still being recorded in chat history. Attach to any **non-root** node (it discovers the client via `window.__estuaryClient`). Configure up to 5 lines, toggle TTS on/off, and optionally trigger the first line automatically on connect. Can also be triggered at runtime via `window.__estuaryExampleSayLine`.
+
+### FixGLTFMaterials
+
+Attach to any GLTF node whose Blender-exported materials use `alphaMode: BLEND` and render as see-through in Three.js (depthWrite is disabled by default for transparent materials). Switches affected materials to `alphaTest`-based cutout transparency instead.
+
+### TexturedMaterial
+
+A `@zcomponent` (not a behavior) for swapping textures on a GLTF's materials at runtime — set `attachTo` to the target material name inside the parent GLTF, then drive `map`/`normalMap`/etc. from the Properties panel or code.
+
+## Estuary SDK Events
+
+`EstuaryVoiceConnection` subscribes to (and other behaviors can listen for via `window.__estuaryClient`):
+
+| Event | Payload | Meaning |
+|---|---|---|
+| `connected` | session | Session established |
+| `disconnected` | reason | Session dropped |
+| `botVoice` | voice | AI audio chunk starting |
+| `audioPlaybackStarted` | messageId | AI speech started playing |
+| `audioPlaybackComplete` | messageId | AI speech finished |
+| `sttResponse` | `{text, isFinal}` | User speech transcript |
+| `characterAction` | action | Structured AI action |
+| `cameraCaptureRequest` | `{requestId, text}` | AI requests a camera image for VLM |
+| `interrupt` | data | Response was interrupted |
+| `quotaExceeded` | data | API quota reached |
 
 ## Customization
 
-### Using Your Own 3D Model
+### Using your own model
 
-1. Replace `3D Models/Axiom Wisp.glb` with your `.glb` file
-2. Update the model reference in `Scene.zcomp` via the Mattercraft editor
-3. Modify `SampleCharacterAnimator` or write a new behavior for your character's animations
+1. Replace the peacock GLB in `3D Models/` with your own and update the reference in `Scene.zcomp` via the Mattercraft editor
+2. Rework `SampleCharacterAnimator._ANIM` (clip-name lookup) and the patrol/conversation logic for your model's animation clips and desired behavior
+3. Re-draw the `PatrolBoundary` child nodes to define the new patrol polygon
 
-### Writing Custom Behaviors
+### Debugging without an API key
 
-Behaviors are TypeScript classes that attach to scene nodes:
+Click `#debugSkipButton` (wired in `index.ts`) to set `window.__skipEstuaryConnection = true` and test patrol/animation behavior without connecting to Estuary.
 
-```typescript
-import { Component, Behavior, ContextManager, Observable, started } from "@zcomponent/core";
-
-/**
- * @zbehavior
- * Description of your behavior
- **/
-export class MyBehavior extends Behavior<Component> {
-
-    /**
-     * Exposed in the Properties panel
-     * @zui
-     * @zdefault 1.0
-     */
-    public speed = new Observable<number>(1.0);
-
-    constructor(contextManager: ContextManager, instance: Component, constructorProps: {}) {
-        super(contextManager, instance);
-        started(this.contextManager).then(() => {
-            // Initialize after AR experience launches
-        });
-    }
-
-    dispose() {
-        // Clean up resources
-        return super.dispose();
-    }
-}
-```
-
-Key conventions:
-- Mark with `@zbehavior` JSDoc tag
-- Use `Observable<T>` with `@zui` to expose properties in the editor
-- Access the Three.js Object3D via `(this.instance as any).element`
-- Use `started(this.contextManager)` to wait for the AR experience to launch
-- Always clean up in `dispose()`
-
-### Accessing the Estuary Client
-
-`EstuaryVoiceConnection` exposes the client on `window.__estuaryClient`. Other behaviors can poll for it:
-
-```typescript
-const interval = setInterval(() => {
-    const client = (window as any).__estuaryClient;
-    if (client) {
-        clearInterval(interval);
-        client.on("botResponse", (response) => { /* ... */ });
-        client.on("characterAction", (action) => { /* ... */ });
-    }
-}, 250);
-```
-
-## Features
-
-- **Voice conversation** — real-time speech-to-text and text-to-speech via LiveKit/WebSocket
-- **Vision (VLM)** — character can request and process camera images. Try asking your character what it thinks about what you're looking at!
-- **Persistent memory** — character can remember conversations across sessions, configurable in Estuary Configurator
-- **Mute control** — built-in microphone mute button in the HTML overlay
-- **Auto-reconnect** — handles connection drops gracefully
-- **Character actions** — respond to structured actions from the AI (e.g., follow, stop)
-
-## Important Notes
-
-- **Browser requirements** — WebSocket, Web Audio API, and microphone permission. Camera access needed for VLM features.
-
-## Resources
-
-- [Estuary Configurator](https://app.estuary-ai.com)
-- [Mattercraft Documentation](https://docs.zap.works/mattercraft/)
-- [Estuary SDK on npm](https://www.npmjs.com/package/@estuary-ai/sdk)
+See [CLAUDE.md](CLAUDE.md) for architecture details, the animation-blending gotcha, and the full scene-graph reference.

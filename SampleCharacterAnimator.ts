@@ -164,6 +164,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 */
 	public noticeDuration = new Observable<number>(0.6);
 
+	/**
+	 * Show the on-screen debug overlay (state/patrol/locomotion/animation panels).
+	 * Turn on while iterating; leave off for production builds.
+	 * @zui
+	 * @zdefault false
+	 */
+	public showDebugOverlay = new Observable<boolean>(false);
+
 	// ─── Private state ───────────────────────────────────────────────
 
 	private _state: AnimationState = "notEngaged";
@@ -237,6 +245,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _convAnimTimer: ReturnType<typeof setTimeout> | null = null;
 	private readonly _CONVERSATING_IDLE_DURATION_S = 3.0;
+	private _convAnimStartedAt = 0;
+	private readonly _CONV_ANIM_MIN_HOLD_S = 2.5;
 
 	// ─── Locomotion (eased velocity — keeps starts/stops from being robotic) ──
 
@@ -272,9 +282,15 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	// for that — distance not improving while still short of the goal — and break it by
 	// cranking turn authority and easing off speed so the radius collapses and it spirals
 	// straight in. Selection (`_minWanderDist`) also refuses targets close enough to risk it.
-	private _bestDistToTarget = Infinity;   // smallest distance seen toward the current target
-	private _noProgressTime = 0;             // seconds since distance last improved
-	private readonly _ORBIT_STALL_S = 1.0;   // no-progress time that counts as an orbit
+	// We count a "stall" ONLY while the bird is aligned (pointed at the target) yet not
+	// closing — the true orbit signature. Mid-turn (large heading error) the distance
+	// legitimately stalls/grows as it creeps forward off-axis, so we must NOT trip then,
+	// or escape kills the forward creep and the bird spins on the spot ("moonwalk").
+	// Progress is frame-to-frame, not vs an all-time best, so recovering from forward
+	// drift counts as progress instead of staying latched above a stale best distance.
+	private _prevDistToTarget = Infinity;    // last frame's distance to target (closing test)
+	private _noProgressTime = 0;             // seconds aligned-but-not-closing (true orbit)
+	private readonly _ORBIT_STALL_S = 1.2;   // aligned-stall time that counts as a real orbit
 	private _orbitEscaping = false;          // currently force-converging out of an orbit
 	// Debug readouts (shown in the Locomotion overlay section).
 	private _debugHeadingErrDeg = 0;
@@ -619,7 +635,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 * progress toward *this* target, not a stale one.
 	 */
 	private _resetArrivalWatchdog(): void {
-		this._bestDistToTarget = Infinity;
+		this._prevDistToTarget = Infinity;
 		this._noProgressTime = 0;
 		this._orbitEscaping = false;
 	}
@@ -664,18 +680,28 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// inside its turning circle — it keeps curving toward a point it can't reach, so
 		// the distance stops shrinking. Detect that (no improvement for _ORBIT_STALL_S
 		// while still short of the goal) and flip into an escape mode below.
-		if (dist < this._bestDistToTarget - 0.01) {
-			this._bestDistToTarget = dist;
-			this._noProgressTime = 0;
-		} else {
-			this._noProgressTime += dt;
-		}
-		this._orbitEscaping = this._noProgressTime > this._ORBIT_STALL_S && dist > this._ARRIVE_DIST;
-
 		// Heading error toward the target bearing, wrapped to [-π, π].
 		const bearing = Math.atan2(dx, dz);
 		let err = bearing - this._headingYaw;
 		err = Math.atan2(Math.sin(err), Math.cos(err));
+
+		// Anti-orbit watchdog. Three cases, in priority order:
+		//   • closing  (distance dropping this frame)  → real progress, clear the timer.
+		//   • turningHard (|err| > 60°, mid-slew)      → NOT an orbit: the bird is creeping
+		//       forward off-axis while it swings around, so distance legitimately stalls or
+		//       grows. BLEED the timer down rather than accruing it (this is what was firing
+		//       escape mid-turn and freezing forward motion into a "moonwalk" spin).
+		//   • else (aligned, |err| ≤ 60°, yet NOT closing) → the genuine pure-pursuit orbit
+		//       signature; the only case that accrues stall time toward an escape.
+		// Frame-to-frame (vs an all-time best) so that the instant the turn finishes and it
+		// starts closing, the timer resets instead of staying latched above a stale best.
+		const closing = dist < this._prevDistToTarget - 5e-4;
+		this._prevDistToTarget = dist;
+		const turningHard = Math.abs(err) > (60 * Math.PI / 180);
+		if (closing) this._noProgressTime = 0;
+		else if (turningHard) this._noProgressTime = Math.max(0, this._noProgressTime - dt);
+		else this._noProgressTime += dt;
+		this._orbitEscaping = this._noProgressTime > this._ORBIT_STALL_S && dist > this._ARRIVE_DIST;
 
 		// Turn the heading toward the target with an *eased* yaw rate (→ an S-curve arc,
 		// not a flat constant-speed pan). Desired rate is proportional to the heading
@@ -683,21 +709,23 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// per-maneuver variance; the actual rate ramps toward it (angular accel) so the
 		// turn also eases in from rest. Escaping an orbit, crank the cap so the heading
 		// snaps onto the bearing and the turning circle collapses to nothing.
-		const maxRate = this.turnSpeed.value * this._turnRateScale * (this._orbitEscaping ? 6 : 1);
-		const desiredRate = Math.max(-maxRate, Math.min(maxRate, err * this._TURN_KP * (this._orbitEscaping ? 6 : 1)));
-		const dRate = this._YAW_ACCEL * (this._orbitEscaping ? 6 : 1) * dt;
+		const escapeBoost = this._orbitEscaping ? 2.5 : 1;
+		const maxRate = this.turnSpeed.value * this._turnRateScale * escapeBoost;
+		const desiredRate = Math.max(-maxRate, Math.min(maxRate, err * this._TURN_KP * escapeBoost));
+		const dRate = this._YAW_ACCEL * escapeBoost * dt;
 		this._yawRate += Math.max(-dRate, Math.min(dRate, desiredRate - this._yawRate));
 		let dYaw = this._yawRate * dt;
 		if (Math.abs(dYaw) >= Math.abs(err)) { dYaw = err; this._yawRate = desiredRate; } // don't overshoot
 		this._headingYaw += dYaw;
 
 		// Forward speed: ease toward the goal AND slow for sharp turns (alignment gate,
-		// floored so a U-turn still arcs forward instead of pivoting). While escaping an
-		// orbit, ease off hard so the (now fast-turning) heading lines up before it travels
-		// — radius = speed/turnRate → tiny, so it spirals straight in instead of circling.
-		const align = this._orbitEscaping
-			? 0.15 * Math.max(0, Math.cos(err))
-			: Math.max(this._STEER_SPEED_FLOOR, Math.cos(err));
+		// floored so a U-turn still arcs forward instead of pivoting). CRITICAL: keep the
+		// SAME forward floor even while escaping an orbit — never drop toward 0, or the bird
+		// spins on the spot (the "moonwalk": walk cycle playing, zero translation). A tighter
+		// turn radius comes from turning FASTER (escapeBoost above), not from stopping:
+		// radius = speed / yawRate, so a brisk turn at the floor speed already collapses the
+		// circle and spirals it straight in while it keeps visibly stepping forward.
+		const align = Math.max(this._STEER_SPEED_FLOOR, Math.cos(err));
 		const desired = Math.min(maxSpeed, dist * this._ARRIVE_DECEL_K) * align;
 		const ds = this._ACCEL * dt;
 		if (this._speed < desired) this._speed = Math.min(desired, this._speed + ds);
@@ -889,8 +917,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 					const angularDist = obj.quaternion.angleTo(this._targetQuat);
 
-					const TURN_ON  = 0.087; // ~5° — start turning
-					const TURN_OFF = 0.035; // ~2° — stop turning (hysteresis)
+					const TURN_ON  = 0.21; // ~12° — start turning
+					const TURN_OFF = 0.14; // ~8° — stop turning (hysteresis)
 
 					if (!this._isTurning && angularDist > TURN_ON) {
 						// Viewer moved enough that we must reorient — shuffle round with a
@@ -974,6 +1002,17 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 	private _onSttResponse(payload: { text: string; isFinal: boolean }): void {
 		this._logSdkEvent(`sttResponse isFinal=${payload.isFinal} "${payload.text.slice(0, 40)}"`);
+
+		// User spoke up before the character ever noticed them (still patrolling/idle).
+		// Still play the physical noticing → walk-over → settle beat for visual consistency,
+		// but skip the canned introduction — they already started the conversation themselves,
+		// so just let the normal conversating animation palette take over once it arrives.
+		if (this._state === "notEngaged" && !this._hasGreeted && this._camera && this._vpsReady) {
+			this._logDebugEvent("user spoke first → noticing viewer (no intro)");
+			this._enterApproaching(false);
+			return;
+		}
+
 		if (this._state === "isConversating" && this._inactivityTimer !== null) {
 			clearTimeout(this._inactivityTimer);
 			this._inactivityTimer = null;
@@ -1032,11 +1071,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			// it says hello. Otherwise settle straight into the attentive idle.
 			if (Math.random() < 0.55) {
 				this._setAnim("display", { loop: false });
+				this._convAnimStartedAt = performance.now();
 				this._queueNextConvAnim(this._DISPLAY_DURATION_S);
 			} else {
+				this._convAnimStartedAt = 0; // first pick of the conversation — no hold to respect yet
 				this._pickConversatingAnim();
 			}
 		} else {
+			this._convAnimStartedAt = 0;
 			this._pickConversatingAnim();
 		}
 		this._logDebugEvent(`→ isConversating (greet=${greet})`);
@@ -1066,6 +1108,14 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 * weight properties.
 	 */
 	private _pickConversatingAnim(): void {
+		// Never cut an animation short — if it hasn't been held for the minimum
+		// duration yet, defer the re-roll instead of sampling a new one now.
+		const heldS = (performance.now() - this._convAnimStartedAt) / 1000;
+		if (this._convAnimStartedAt !== 0 && heldS < this._CONV_ANIM_MIN_HOLD_S) {
+			this._queueNextConvAnim(this._CONV_ANIM_MIN_HOLD_S - heldS);
+			return;
+		}
+
 		const speaking = this._isSpeaking;
 		const idleW = Math.max(0, this.conversatingIdleWeight.value);
 		// Won't groom mid-sentence — preening is a calm listening-time comfort beat.
@@ -1084,6 +1134,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 		const loop = key === "idle";
 		this._setAnim(key, { loop });
+		this._convAnimStartedAt = performance.now();
 		// Hold a looping idle for a varied stretch; re-pick one-shots when they finish.
 		this._queueNextConvAnim(loop ? MathUtils.randFloat(dur, dur * 1.9) : dur);
 	}
@@ -1425,6 +1476,11 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	}
 
 	private _createDebugOverlay(): void {
+		// Logic stays intact even when hidden — _updateDebugOverlay/_logDebugEvent
+		// just no-op without a live _debugOverlay, so toggling showDebugOverlay
+		// back on later is a one-property change.
+		if (!this.showDebugOverlay.value) return;
+
 		// Pin the DebugOverlay HTML component to top-left of screen via Mattercraft properties.
 		const overlayComp = (this._rootScene as any)?.nodes?.DebugOverlay;
 		if (overlayComp) {

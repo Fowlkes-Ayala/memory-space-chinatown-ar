@@ -15,7 +15,9 @@
       "Bash(/usr/bin/git -C /Users/isabelfowlkes/Documents/meml-chinatown/Mattercraft-Estuary-Template/estuary-mattercraft-template-main log --oneline -5)",
       "Bash(/usr/bin/git -C /Users/isabelfowlkes/Documents/meml-chinatown/Mattercraft-Estuary-Template/estuary-mattercraft-template-main diff --stat)",
       "Bash(grep -n \"_playingClips\\\\|_pendingFadeClears\\\\|_processFadeClears\\\\|_fadeOutClip\\\\|cleanBase\\\\|\\\\.clip:\\\\|a\\\\.layer\\\\|{ layer,\" SampleCharacterAnimator.ts)",
-      "Bash(echo \"exit: $?\")"
+      "Bash(echo \"exit: $?\")",
+      "Bash(git checkout *)",
+      "Bash(node -e \"require\\('typescript'\\)\")"
     ]
   }
 }

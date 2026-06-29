@@ -709,8 +709,8 @@
 			"source": "file://./3D Models/marker.glb"
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
-			"developerToken": "51ad3887c8048c53e0460e6fd9e443f6d96a4e43fcb044fa9a2d69f971a5159d",
-			"mapID": "147194",
+			"developerToken": "d9d150c990cf2d0e39a60981453c2ab1ba5d6b3d1d86a556c8e7d8e6a81c0647",
+			"mapID": "147456",
 			"previewType": "DensePLY",
 			"showPreviewAtRuntime": false
 		},
@@ -785,6 +785,7 @@
 		},
 		"0d292fedc36f47e6b38db8eb0c0a6921": {
 			"display": "flex",
+			"enabled": false,
 			"height": [
 				15,
 				"px"
@@ -806,8 +807,8 @@
 		"0fc6823e2238490499ed99485e57751a": {
 		},
 		"23a0093e086a47b0b31edc05a01beda8-0": {
-			"apiKey": "est_eAmjsW34zqI3S_fQxNXi0JNrjkuk7X1MAkCZDq_hQjg",
-			"characterId": "e8bb0cea-baf1-4ff6-bf73-a597ae20c83e",
+			"apiKey": "est_63UDAp1d2Sqg6kzV01D3jG_qrDoE-JYzj-02VGf1JA8",
+			"characterId": "dc762148-c14e-4bdc-b5f8-675ad9d0a1c9",
 			"playerId": "player-42"
 		},
 		"26855c66e5484b449401ca65edab4860": {
@@ -826,11 +827,11 @@
 		},
 		"3c9d24ff852b4831ad43edc516f2918a": {
 			"position": [
-				1.2094453915293357,
+				2.6668196277045357,
 				-1.6,
-				0.20285036432066494
+				2.7368725196742574
 			],
-			"visible": true
+			"visible": false
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
 		},
@@ -880,11 +881,11 @@
 		},
 		"9ad0055394464bc295613f07657950d9": {
 			"position": [
-				-0.6249898195851089,
+				-0.4257382526531517,
 				-1.6,
-				2.252863250288514
+				0.4064305732072895
 			],
-			"visible": true
+			"visible": false
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
 			"visible": true,
@@ -893,36 +894,39 @@
 			"wireframePreview": false
 		},
 		"ad45d1a5acda48c69755ecab561a19b7": {
+			"enabled": false,
 			"verticalAnchor": "bottomSafe",
-			"visible": true
+			"visible": false
 		},
 		"b2bed9100d304718a43e7caed392a228": {
 			"position": [
-				-2.998045629249712,
+				1.1571745512350562,
 				-1.6,
-				-0.5857844638078715
+				-2.970570055786844
 			],
-			"visible": true
+			"visible": false
 		},
 		"bfdf8fcf7d5a45948ad17dc9b1039211": {
 		},
 		"c1436a2879ef4f7da8fec1245ebdabd8": {
 			"position": [
-				-0.8144167184424891,
+				4.502500004946047,
 				-1.6,
-				-1.9377819874949718
+				-1.223946139381384
 			],
-			"visible": true
+			"visible": false
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
 			"originAnchor": "ImmersalAnchorGroup"
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
+			"conversatingLickingWeight": 0.2,
 			"conversatingSpreadWeight": 0.2,
 			"conversatingTimeout": 8,
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
 			"proximityRadius": 1.8,
+			"showDebugOverlay": true,
 			"turnSpeed": 0.8,
 			"walkSpeed": 0.5
 		},
