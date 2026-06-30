@@ -104,13 +104,6 @@ export class EstuaryVoiceConnection extends Behavior<Component> {
 
 		// Initialize connection when the experience starts
 		started(this.contextManager).then(() => {
-			// Check if debug skip flag is set
-			if ((window as any).__skipEstuaryConnection) {
-				console.warn('Debug: Skipping Estuary connection');
-				this._wireMuteButton();
-				return;
-			}
-			
 			this._initializeConnection();
 			this._wireMuteButton();
 		});

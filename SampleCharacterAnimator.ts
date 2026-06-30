@@ -320,11 +320,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _tmpQuat = new Quaternion();
 	private _targetQuat = new Quaternion();
 
-	// ─── VPS gate ────────────────────────────────────────────────────
-
-	private _vpsReady = false;
-	private _boundOnVpsLocalized: (() => void) | null = null;
-
 	// ─── Debug overlay ───────────────────────────────────────────────
 
 	private _debugOverlay: HTMLElement | null = null;
@@ -378,7 +373,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		this._homePosition.copy(obj.position);
 
 		// Walk the Mattercraft component parent chain to reach the root scene Comp.
-		// this.instance.parent = ImmersalAnchorGroup, not the root — must go all the way up.
+		// this.instance.parent = UserPlacementAnchorGroup, not the root — must go all the way up.
 		let rootComp: any = this.instance;
 		while (rootComp?.parent) rootComp = rootComp.parent;
 		this._rootScene = rootComp as SceneType;
@@ -397,22 +392,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 				this._subscribeToClient(client);
 			}
 		}, 250);
-
-		// Gate proximity detection on Immersal VPS localization to prevent a false
-		// trigger while the anchor group is at world origin (before the first lock).
-		const anchorComp = (this._rootScene as any)?.nodes?.ImmersalAnchorGroup;
-		if (!anchorComp) {
-			this._vpsReady = true;
-		} else if (anchorComp.localized?.value === true) {
-			this._vpsReady = true;
-			this._logDebugEvent("VPS already locked");
-		} else {
-			this._boundOnVpsLocalized = () => {
-				this._vpsReady = true;
-				this._logDebugEvent("VPS locked — proximity enabled");
-			};
-			anchorComp.onLocalized?.addListener(this._boundOnVpsLocalized);
-		}
 
 		this._createDebugOverlay();
 		this._clearAllAnimLayersAtStartup();
@@ -654,10 +633,10 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	 */
 	private _steerAndMove(obj: Object3D, targetX: number, targetZ: number, dt: number, maxSpeed: number): number {
 		// Refuse to move toward a non-finite target. This happens when the target was
-		// derived via obj.parent.worldToLocal() while the ImmersalAnchorGroup parent is
-		// momentarily degenerate/non-invertible (e.g. before the first VPS lock), which
-		// yields NaN. Stepping anyway would permanently poison obj.position with NaN
-		// (NaN + x === NaN forever), hiding the character for good. Stay put instead.
+		// derived via obj.parent.worldToLocal() while the anchor parent is momentarily
+		// degenerate/non-invertible, which yields NaN. Stepping anyway would permanently
+		// poison obj.position with NaN (NaN + x === NaN forever), hiding the character
+		// for good. Stay put instead.
 		if (!Number.isFinite(targetX) || !Number.isFinite(targetZ)) { this._speed = 0; return Infinity; }
 
 		// Self-heal if position was already poisoned on an earlier frame: snap back to
@@ -802,7 +781,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		switch (this._state) {
 			case "notEngaged": {
 				// Proximity trigger — only fires on the first encounter
-				if (this._camera && !this._hasGreeted && this._vpsReady) {
+				if (this._camera && !this._hasGreeted) {
 					obj.getWorldPosition(this._tmpVec);
 					const charX = this._tmpVec.x, charZ = this._tmpVec.z;
 					this._camera.getWorldPosition(this._tmpVec);
@@ -818,8 +797,8 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 
 				if (this._wanderSub === "stroll") {
 					// _patrolWaypoint is fixed in WORLD space (the boundary markers don't move),
-					// but obj.parent (ImmersalAnchorGroup's tracker group) has its pose recomputed
-					// from the live VPS/world-tracking anchor every frame — so re-derive the
+					// but obj.parent (UserPlacementAnchorGroup) has its pose recomputed
+					// from the live world-tracking anchor every frame — so re-derive the
 					// local-space target fresh, every frame, rather than caching a stale snapshot.
 					this._tmpVec2.copy(this._patrolWaypoint);
 					if (obj.parent) obj.parent.worldToLocal(this._tmpVec2);
@@ -850,14 +829,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 					const dx = this._tmpVec.x - obj.position.x;
 					const dz = this._tmpVec.z - obj.position.z;
 					const dist = Math.sqrt(dx * dx + dz * dz);
-
-					// Abort if viewer has walked away
-					const abandonDist = this.proximityRadius.value * 1.5;
-					if (dist > abandonDist) {
-						this._logDebugEvent("viewer left — resuming patrol");
-						this._enterNotEngaged();
-						break;
-					}
 
 					// "Notice" beat — it spotted you: hold position and orient (a touch
 					// faster than normal) toward you before actually walking over.
@@ -1007,7 +978,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// Still play the physical noticing → walk-over → settle beat for visual consistency,
 		// but skip the canned introduction — they already started the conversation themselves,
 		// so just let the normal conversating animation palette take over once it arrives.
-		if (this._state === "notEngaged" && !this._hasGreeted && this._camera && this._vpsReady) {
+		if (this._state === "notEngaged" && !this._hasGreeted && this._camera) {
 			this._logDebugEvent("user spoke first → noticing viewer (no intro)");
 			this._enterApproaching(false);
 			return;
@@ -1159,6 +1130,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 	private _enterNotEngaged(awayFromCamera = false): void {
 		this._clearPatrolTimers();
 		this._speed = 0;
+		this._state = "notEngaged";
 		this._beginStroll(awayFromCamera);
 	}
 
@@ -1244,7 +1216,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		}
 
 		// WORLD space — must NOT be pre-converted to parent-local here; _animate does
-		// that fresh each frame against the live VPS anchor pose. (y unused downstream.)
+		// that fresh each frame against the live anchor pose. (y unused downstream.)
 		this._patrolWaypoint.set(best.x, 0, best.z);
 		this._resetArrivalWatchdog();
 	}
@@ -1344,7 +1316,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 		// live in. Do NOT convert to the character's parent-local space here: that
 		// conversion must be done fresh every frame against the live parent
 		// transform (see _animate's "notEngaged" patrol movement) since
-		// ImmersalAnchorGroup's pose is continuously recomputed by VPS tracking.
+		// UserPlacementAnchorGroup's pose is continuously recomputed by world tracking.
 		return group.children.map(child => {
 			child.getWorldPosition(this._tmpVec);
 			return { x: this._tmpVec.x, z: this._tmpVec.z };
@@ -1655,7 +1627,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			stateEntry.contentEl.innerHTML = [
 				`state:      ${this._state}`,
 				`hasGreeted: ${this._hasGreeted}`,
-				`vpsReady:   ${this._vpsReady}`,
 				`visible:    ${visChain}  matNaN:${matNaN}`,
 				`camera:     ${this._camera ? "found" : "NOT FOUND ⚠"}`,
 				`camPos:     ${camXYZ}`,
@@ -1760,7 +1731,7 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			}
 			this._debugContent.innerHTML = [
 				`state: ${this._state}  hasGreeted: ${this._hasGreeted}`,
-				`camDist: ${camDist}  vpsReady: ${this._vpsReady}`,
+				`camDist: ${camDist}`,
 				`timer: ${this._inactivityTimer !== null ? "RUNNING" : "idle"}  reason: ${this._timerLastReason}`,
 				"SDK:", ...this._sdkEventLog.slice(0, 6).map(e => `  ${e}`),
 				"Events:", ...this._debugEvents,
@@ -1802,11 +1773,6 @@ export class SampleCharacterAnimator extends Behavior<Component> {
 			if (this._boundOnInterrupt) this._client.off("interrupt", this._boundOnInterrupt);
 			if (this._boundOnSttResponse) this._client.off("sttResponse", this._boundOnSttResponse);
 			this._client = null;
-		}
-		if (this._boundOnVpsLocalized) {
-			const anchorComp = (this._rootScene as any)?.nodes?.ImmersalAnchorGroup;
-			anchorComp?.onLocalized?.removeListener(this._boundOnVpsLocalized);
-			this._boundOnVpsLocalized = null;
 		}
 		if (this._debugButtonComp && this._boundOnDebugToggle) {
 			this._debugButtonComp.onClick.removeListener(this._boundOnDebugToggle);

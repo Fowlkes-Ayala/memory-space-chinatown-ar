@@ -17,7 +17,12 @@
       "Bash(grep -n \"_playingClips\\\\|_pendingFadeClears\\\\|_processFadeClears\\\\|_fadeOutClip\\\\|cleanBase\\\\|\\\\.clip:\\\\|a\\\\.layer\\\\|{ layer,\" SampleCharacterAnimator.ts)",
       "Bash(echo \"exit: $?\")",
       "Bash(git checkout *)",
-      "Bash(node -e \"require\\('typescript'\\)\")"
+      "Bash(node -e \"require\\('typescript'\\)\")",
+      "Bash(python3 -c \"import json; json.load\\(open\\('/Users/isabelfowlkes/Documents/meml-chinatown/Mattercraft-Estuary-Template/estuary-mattercraft-template-main/Scene.zcomp'\\)\\)\")",
+      "Bash(wc -l /Users/isabelfowlkes/Documents/meml-chinatown/estuary-mattercraft-template-main/Scene.zcomp /Users/isabelfowlkes/Documents/meml-chinatown/Mattercraft-Estuary-Template/estuary-mattercraft-template-main/Scene.zcomp)",
+      "Read(//Users/isabelfowlkes/Documents/meml-chinatown/estuary-mattercraft-template-main/**)",
+      "Bash(python3 -c \"import json; json.load\\(open\\('Scene.zcomp'\\)\\)\")",
+      "Bash(git stash *)"
     ]
   }
 }

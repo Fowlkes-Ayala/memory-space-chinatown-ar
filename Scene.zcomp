@@ -1,6 +1,58 @@
 {
 	"animation": {
 		"clips": {
+			"10888b4c13604529a51064461db9fa30": {
+				"id": "10888b4c13604529a51064461db9fa30",
+				"length": 6533.333333333333,
+				"lengthType": "expand",
+				"name": "Peacock_A15_licking feathers",
+				"order": "a9",
+				"scriptName": "Peacock_A15_licking_feathers",
+				"tracks": {
+					"956c8f23551f4a8c87b8c2aa713ee510": {
+						"blend": "overlay",
+						"entityID": "ae067a28f30a4331b42340110d0471c4",
+						"id": "956c8f23551f4a8c87b8c2aa713ee510",
+						"keyframes": {
+							"338fd237822d4582b18ccd35c0c28729": {
+								"id": "338fd237822d4582b18ccd35c0c28729",
+								"t": 0,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
+						"weight": {
+						}
+					},
+					"d75d78d5a4b1471c9051949761513556": {
+						"data": {
+							"741e2d90993a48c6a55f5d68fd5904b2": {
+								"id": "741e2d90993a48c6a55f5d68fd5904b2",
+								"rate": 1,
+								"s0": 0,
+								"t0": 0,
+								"t1": 6533.333333333333
+							}
+						},
+						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+						"id": "d75d78d5a4b1471c9051949761513556",
+						"name": "Axiom Wisp.glb > Peacock_A15_licking feathers",
+						"order": "a0",
+						"property": [
+							"streams",
+							"Peacock_A15_licking feathers"
+						],
+						"type": "stream",
+						"weight": {
+						}
+					}
+				},
+				"type": "timeline"
+			},
 			"10cd283c4ce54c8893543c77a013bbcf": {
 				"id": "10cd283c4ce54c8893543c77a013bbcf",
 				"length": 0,
@@ -12,18 +64,18 @@
 				},
 				"type": "state"
 			},
-			"367bf5e0710b4f258ef00545dabe73ff": {
-				"id": "367bf5e0710b4f258ef00545dabe73ff",
+			"6ab68a77710d4b17820915b663b36894": {
+				"id": "6ab68a77710d4b17820915b663b36894",
 				"length": 8333.333333333334,
 				"lengthType": "expand",
-				"name": "Peacock_A15_Spread feathers2",
-				"order": "aG",
-				"scriptName": "Peacock_A15_Spread_feathers2",
+				"name": "Peacock_A15_Spreadfeathers2",
+				"order": "aB",
+				"scriptName": "Peacock_A15_Spreadfeathers2",
 				"tracks": {
-					"b0d05aec0a5c4d9a9f172e03530c6c65": {
+					"527641672fc44ea88b8c650a5faa6041": {
 						"data": {
-							"f071caa64df8450f8a0e60738f9274aa": {
-								"id": "f071caa64df8450f8a0e60738f9274aa",
+							"aab30b5f26b647fa89a6545ca8e24e2c": {
+								"id": "aab30b5f26b647fa89a6545ca8e24e2c",
 								"rate": 1,
 								"s0": 0,
 								"t0": 0,
@@ -31,8 +83,8 @@
 							}
 						},
 						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "b0d05aec0a5c4d9a9f172e03530c6c65",
-						"name": "Peacock.glb > Peacock_A15_Spread feathers2",
+						"id": "527641672fc44ea88b8c650a5faa6041",
+						"name": "Axiom Wisp.glb > Peacock_A15_Spread feathers2",
 						"order": "a0",
 						"property": [
 							"streams",
@@ -41,102 +93,14 @@
 						"type": "stream",
 						"weight": {
 						}
-					}
-				},
-				"type": "timeline"
-			},
-			"390c22f9187a467a8b1fa8c47a07989d": {
-				"id": "390c22f9187a467a8b1fa8c47a07989d",
-				"length": 1000,
-				"lengthType": "expand",
-				"name": "Idle",
-				"order": "aB",
-				"scriptName": "Idle",
-				"tracks": {
-				},
-				"type": "timeline"
-			},
-			"5f4fa139eb18404283ae5580458f72d2": {
-				"id": "5f4fa139eb18404283ae5580458f72d2",
-				"length": 1350,
-				"lengthType": "expand",
-				"name": "Peacock_A15_Walk",
-				"order": "aH",
-				"scriptName": "Peacock_A15_Walk",
-				"tracks": {
-					"7729dd707c6c43cdba421a4b2d6e9c32": {
-						"data": {
-							"d3e6ef11d3e44a43be03b9630732a918": {
-								"id": "d3e6ef11d3e44a43be03b9630732a918",
-								"rate": 1,
-								"s0": 0,
-								"t0": 0,
-								"t1": 1350
-							}
-						},
-						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "7729dd707c6c43cdba421a4b2d6e9c32",
-						"name": "Peacock.glb > Peacock_A15_Walk",
-						"order": "a0",
-						"property": [
-							"streams",
-							"Peacock_A15_Walk"
-						],
-						"type": "stream",
-						"weight": {
-						}
-					}
-				},
-				"type": "timeline"
-			},
-			"7a71bc68cdaa44d6b8e22c9ddfc17171": {
-				"id": "7a71bc68cdaa44d6b8e22c9ddfc17171",
-				"length": 1000,
-				"lengthType": "expand",
-				"name": "TL_FlexAnimTest",
-				"order": "aA",
-				"scriptName": "TL_FlexAnimTest",
-				"tracks": {
-				},
-				"type": "timeline"
-			},
-			"a4d6a5fa401e43eb9c2236bd976ed9c4": {
-				"id": "a4d6a5fa401e43eb9c2236bd976ed9c4",
-				"length": 7333.333333333333,
-				"lengthType": "expand",
-				"name": "Peacock_A15_Spreadfeathers",
-				"order": "aF",
-				"scriptName": "Peacock_A15_Spreadfeathers",
-				"tracks": {
-					"74c4dbc06e81437880398655b6c23da8": {
-						"data": {
-							"80b286fd62e04592a082e39a23949901": {
-								"id": "80b286fd62e04592a082e39a23949901",
-								"rate": 1,
-								"s0": 0,
-								"t0": 0,
-								"t1": 7333.333333333333
-							}
-						},
-						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "74c4dbc06e81437880398655b6c23da8",
-						"name": "Peacock.glb > Peacock_A15_Spread feathers",
-						"order": "a0",
-						"property": [
-							"streams",
-							"Peacock_A15_Spread feathers"
-						],
-						"type": "stream",
-						"weight": {
-						}
 					},
-					"fae68bea8fe644418716a5169cf521ca": {
+					"a4a83bde816d4a9da602b8615aa1a679": {
 						"blend": "overlay",
-						"entityID": "6f84c31dfc5b4a6a8a352f88698c441b",
-						"id": "fae68bea8fe644418716a5169cf521ca",
+						"entityID": "133cdc5178b4444a9296a5e0a628a670",
+						"id": "a4a83bde816d4a9da602b8615aa1a679",
 						"keyframes": {
-							"182c85fd80b048adbcec647b7decee85": {
-								"id": "182c85fd80b048adbcec647b7decee85",
+							"be3b7a831e694de1af0cede7b1f2dfb4": {
+								"id": "be3b7a831e694de1af0cede7b1f2dfb4",
 								"t": 0,
 								"v": 1
 							}
@@ -163,58 +127,6 @@
 				},
 				"type": "state"
 			},
-			"b6536bd67a8547b4894d32b937cec5a6": {
-				"id": "b6536bd67a8547b4894d32b937cec5a6",
-				"length": 1350,
-				"lengthType": "expand",
-				"name": "Peacock_A15_Walk",
-				"order": "aJ",
-				"scriptName": "Peacock_A15_Walk0",
-				"tracks": {
-					"36cdcd2a93684e42a088fc3ffda3c684": {
-						"blend": "overlay",
-						"entityID": "f3bcc0f707b1459c991dd232a635b1e2",
-						"id": "36cdcd2a93684e42a088fc3ffda3c684",
-						"keyframes": {
-							"7d1c371b867b4157aabfd55d47e1f447": {
-								"id": "7d1c371b867b4157aabfd55d47e1f447",
-								"t": 0,
-								"v": 1
-							}
-						},
-						"order": "Zz",
-						"property": [
-							"weight"
-						],
-						"type": "property",
-						"weight": {
-						}
-					},
-					"b7318ce9d25340deb14de629ac5ff03b": {
-						"data": {
-							"19ac6fee6e384d73bff4f8fa04ac3745": {
-								"id": "19ac6fee6e384d73bff4f8fa04ac3745",
-								"rate": 1,
-								"s0": 0,
-								"t0": 0,
-								"t1": 1350
-							}
-						},
-						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "b7318ce9d25340deb14de629ac5ff03b",
-						"name": "Peacock.glb > Peacock_A15_Walk",
-						"order": "a0",
-						"property": [
-							"streams",
-							"Peacock_A15_Walk"
-						],
-						"type": "stream",
-						"weight": {
-						}
-					}
-				},
-				"type": "timeline"
-			},
 			"b7cd899576524ad0842f7ac8392a84a9": {
 				"id": "b7cd899576524ad0842f7ac8392a84a9",
 				"length": 0,
@@ -226,43 +138,43 @@
 				},
 				"type": "state"
 			},
-			"ba2297d896c044c8bf1c325934ec853b": {
-				"id": "ba2297d896c044c8bf1c325934ec853b",
-				"length": 8333.333333333334,
+			"d30257c86285408e932ae67d42c4550f": {
+				"id": "d30257c86285408e932ae67d42c4550f",
+				"length": 7333.333333333333,
 				"lengthType": "expand",
-				"name": "Peacock_A15_Spreadfeathers2",
-				"order": "aI",
-				"scriptName": "Peacock_A15_Spreadfeathers2",
+				"name": "Peacock_A15_Spreadfeathers",
+				"order": "aA",
+				"scriptName": "Peacock_A15_Spreadfeathers",
 				"tracks": {
-					"7f6f07c361d043958ddbcdecb1129660": {
+					"61312cf02001485a852315163aeab585": {
 						"data": {
-							"b24c9b499ab248a38cd11cbd72c9c09d": {
-								"id": "b24c9b499ab248a38cd11cbd72c9c09d",
+							"7a88789ec26f4807af6bc63fc8e65e4b": {
+								"id": "7a88789ec26f4807af6bc63fc8e65e4b",
 								"rate": 1,
 								"s0": 0,
 								"t0": 0,
-								"t1": 8333.333333333334
+								"t1": 7333.333333333333
 							}
 						},
 						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "7f6f07c361d043958ddbcdecb1129660",
-						"name": "Peacock.glb > Peacock_A15_Spread feathers2",
+						"id": "61312cf02001485a852315163aeab585",
+						"name": "Axiom Wisp.glb > Peacock_A15_Spread feathers",
 						"order": "a0",
 						"property": [
 							"streams",
-							"Peacock_A15_Spread feathers2"
+							"Peacock_A15_Spread feathers"
 						],
 						"type": "stream",
 						"weight": {
 						}
 					},
-					"bea59eea3651450badad89e10896f4d5": {
+					"e75a4a5e39294c78ac6485e36888a16a": {
 						"blend": "overlay",
-						"entityID": "673fa75cb9bf440cbf1a9e8feae68855",
-						"id": "bea59eea3651450badad89e10896f4d5",
+						"entityID": "133cdc5178b4444a9296a5e0a628a670",
+						"id": "e75a4a5e39294c78ac6485e36888a16a",
 						"keyframes": {
-							"7fe23f533e3547fc92a42f97b578b281": {
-								"id": "7fe23f533e3547fc92a42f97b578b281",
+							"9e4bf54af2af474faabdfbb987a9bf05": {
+								"id": "9e4bf54af2af474faabdfbb987a9bf05",
 								"t": 0,
 								"v": 1
 							}
@@ -278,44 +190,22 @@
 				},
 				"type": "timeline"
 			},
-			"d058016307224f449e6d56723d335596": {
-				"id": "d058016307224f449e6d56723d335596",
-				"length": 6533.333333333333,
+			"e21691c73a4f4b40ad9f9d7ba67b52f1": {
+				"id": "e21691c73a4f4b40ad9f9d7ba67b52f1",
+				"length": 2516.6666666666665,
 				"lengthType": "expand",
-				"name": "Peacock_A15_licking feathers",
-				"order": "aE",
-				"scriptName": "Peacock_A15_licking_feathers",
+				"name": "Peacock_A15_Idle",
+				"order": "a8",
+				"scriptName": "Peacock_A15_Idle",
 				"tracks": {
-					"72b1d05d1a2042d6a1b7b1e1a84ed214": {
-						"data": {
-							"eb6bc216c2994f66aae1b772e0f926f6": {
-								"id": "eb6bc216c2994f66aae1b772e0f926f6",
-								"rate": 1,
-								"s0": 0,
-								"t0": 0,
-								"t1": 6533.333333333333
-							}
-						},
-						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "72b1d05d1a2042d6a1b7b1e1a84ed214",
-						"name": "Peacock.glb > Peacock_A15_licking feathers",
-						"order": "a0",
-						"property": [
-							"streams",
-							"Peacock_A15_licking feathers"
-						],
-						"type": "stream",
-						"weight": {
-						}
-					},
-					"cfd85c3db6874cdc99608ab01ce09876": {
+					"2dc8ed5f490c42449244f58e26d690f0": {
 						"blend": "overlay",
-						"entityID": "0fc6823e2238490499ed99485e57751a",
-						"id": "cfd85c3db6874cdc99608ab01ce09876",
+						"entityID": "3ef692a23125448599f4ab058321b433",
+						"id": "2dc8ed5f490c42449244f58e26d690f0",
 						"keyframes": {
-							"358c71f6f9de4fdd8d80cf0d71883323": {
-								"id": "358c71f6f9de4fdd8d80cf0d71883323",
-								"t": 6533.333333332092,
+							"39da6c920c0147d59b4e6526b50007fa": {
+								"id": "39da6c920c0147d59b4e6526b50007fa",
+								"t": 0,
 								"v": 1
 							}
 						},
@@ -326,22 +216,11 @@
 						"type": "property",
 						"weight": {
 						}
-					}
-				},
-				"type": "timeline"
-			},
-			"d6ee80c2b19f4bc5af8f24ff3b5c9cca": {
-				"id": "d6ee80c2b19f4bc5af8f24ff3b5c9cca",
-				"length": 2516.6666666666665,
-				"lengthType": "expand",
-				"name": "Peacock_A15_Idle",
-				"order": "aD",
-				"scriptName": "Peacock_A15_Idle",
-				"tracks": {
-					"1a7b3aef805c447cbbd933e334f5269c": {
+					},
+					"f2f00bda81904fc09834e5c574550370": {
 						"data": {
-							"b0443ca5d91240d28ed2e7e99a852f9c": {
-								"id": "b0443ca5d91240d28ed2e7e99a852f9c",
+							"5e4f0dae49664113b3331dd76ffe5939": {
+								"id": "5e4f0dae49664113b3331dd76ffe5939",
 								"rate": 1,
 								"s0": 0,
 								"t0": 0,
@@ -349,33 +228,14 @@
 							}
 						},
 						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-						"id": "1a7b3aef805c447cbbd933e334f5269c",
-						"name": "Peacock.glb > Peacock_A15_Idle",
+						"id": "f2f00bda81904fc09834e5c574550370",
+						"name": "Axiom Wisp.glb > Peacock_A15_Idle",
 						"order": "a0",
 						"property": [
 							"streams",
 							"Peacock_A15_Idle"
 						],
 						"type": "stream",
-						"weight": {
-						}
-					},
-					"7e55b4a0c7cc454ca04b422a3297cfa9": {
-						"blend": "overlay",
-						"entityID": "bfdf8fcf7d5a45948ad17dc9b1039211",
-						"id": "7e55b4a0c7cc454ca04b422a3297cfa9",
-						"keyframes": {
-							"fde7478f14af4d63832bfaebdc940415": {
-								"id": "fde7478f14af4d63832bfaebdc940415",
-								"t": 330,
-								"v": 1
-							}
-						},
-						"order": "Zz",
-						"property": [
-							"weight"
-						],
-						"type": "property",
 						"weight": {
 						}
 					}
@@ -393,14 +253,55 @@
 				},
 				"type": "state"
 			},
-			"e689655da0d84a85b6854a90da0b0274": {
-				"id": "e689655da0d84a85b6854a90da0b0274",
-				"length": 1000,
+			"ec88b7308846475eaeb4313ed6ba1185": {
+				"id": "ec88b7308846475eaeb4313ed6ba1185",
+				"length": 1350,
 				"lengthType": "expand",
-				"name": "Flex",
+				"name": "Peacock_A15_Walk",
 				"order": "aC",
-				"scriptName": "Flex",
+				"scriptName": "Peacock_A15_Walk",
 				"tracks": {
+					"186b629d7d184443afca60a7e3420cc2": {
+						"data": {
+							"a10b414ae2364290a117084627574173": {
+								"id": "a10b414ae2364290a117084627574173",
+								"rate": 1,
+								"s0": 0,
+								"t0": 0,
+								"t1": 1350
+							}
+						},
+						"entityID": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+						"id": "186b629d7d184443afca60a7e3420cc2",
+						"name": "Axiom Wisp.glb > Peacock_A15_Walk",
+						"order": "a0",
+						"property": [
+							"streams",
+							"Peacock_A15_Walk"
+						],
+						"type": "stream",
+						"weight": {
+						}
+					},
+					"481c3148fff94470a80fc821cd890d49": {
+						"blend": "overlay",
+						"entityID": "4cc57256f8ed4a10a7d64d06d8e26a1b",
+						"id": "481c3148fff94470a80fc821cd890d49",
+						"keyframes": {
+							"c8bf046097fa4450ad58eae9971ed1dc": {
+								"id": "c8bf046097fa4450ad58eae9971ed1dc",
+								"t": 0,
+								"v": 1
+							}
+						},
+						"order": "Zz",
+						"property": [
+							"weight"
+						],
+						"type": "property",
+						"weight": {
+						}
+					}
 				},
 				"type": "timeline"
 			},
@@ -421,37 +322,37 @@
 		"curves": {
 		},
 		"layers": {
-			"3b5679078f3b4155a2c93714a5febe2e": {
+			"7b619f1f0946417c8a12cfb2430947e8": {
 				"clips": {
-					"069124d457f84313bd323bf160da9a7c": {
-						"clipId": "d058016307224f449e6d56723d335596",
-						"id": "069124d457f84313bd323bf160da9a7c",
-						"order": "a2",
+					"231f0656c78542bd99aeb0c25433667c": {
+						"clipId": "10888b4c13604529a51064461db9fa30",
+						"id": "231f0656c78542bd99aeb0c25433667c",
+						"order": "a3",
 						"scriptName": "Peacock_A15_licking_feathers"
 					},
-					"1307c685e18647abab1cc1b8940bbd93": {
-						"clipId": "a4d6a5fa401e43eb9c2236bd976ed9c4",
-						"id": "1307c685e18647abab1cc1b8940bbd93",
-						"order": "a2",
-						"scriptName": "Peacock_A15_Spreadfeathers"
-					},
-					"64b5e2ca69c24701bf5bd5abaa5a39dc": {
-						"clipId": "ba2297d896c044c8bf1c325934ec853b",
-						"id": "64b5e2ca69c24701bf5bd5abaa5a39dc",
-						"order": "a3",
+					"66e48f8ecd2b448ebab4aa6a46306154": {
+						"clipId": "6ab68a77710d4b17820915b663b36894",
+						"id": "66e48f8ecd2b448ebab4aa6a46306154",
+						"order": "a5",
 						"scriptName": "Peacock_A15_Spreadfeathers2"
 					},
-					"a40825bd899c4eb1ba16a61ef07699d3": {
-						"clipId": "b6536bd67a8547b4894d32b937cec5a6",
-						"id": "a40825bd899c4eb1ba16a61ef07699d3",
-						"order": "a4",
-						"scriptName": "Peacock_A15_Walk"
-					},
-					"a48d9eed30e3435d86ae574130436191": {
-						"clipId": "d6ee80c2b19f4bc5af8f24ff3b5c9cca",
-						"id": "a48d9eed30e3435d86ae574130436191",
+					"95ce736d2dab4a92a6d1e5fff963f11b": {
+						"clipId": "e21691c73a4f4b40ad9f9d7ba67b52f1",
+						"id": "95ce736d2dab4a92a6d1e5fff963f11b",
 						"order": "a2",
 						"scriptName": "Peacock_A15_Idle"
+					},
+					"f2bc003f3b69493489ab38d126e344b0": {
+						"clipId": "ec88b7308846475eaeb4313ed6ba1185",
+						"id": "f2bc003f3b69493489ab38d126e344b0",
+						"order": "a6",
+						"scriptName": "Peacock_A15_Walk"
+					},
+					"f93fe4f8f32c45cf86fd202e102456cb": {
+						"clipId": "d30257c86285408e932ae67d42c4550f",
+						"id": "f93fe4f8f32c45cf86fd202e102456cb",
+						"order": "a4",
+						"scriptName": "Peacock_A15_Spreadfeathers"
 					}
 				},
 				"defaultClip": null,
@@ -461,21 +362,21 @@
 					"time": 300
 				},
 				"enabled": true,
-				"id": "3b5679078f3b4155a2c93714a5febe2e",
+				"id": "7b619f1f0946417c8a12cfb2430947e8",
 				"name": "PeacockAnimations",
-				"order": "a4",
+				"order": "a2",
 				"scriptName": "PeacockAnimations"
 			}
 		}
 	},
 	"behaviors": {
-		"0fc6823e2238490499ed99485e57751a": {
-			"id": "0fc6823e2238490499ed99485e57751a",
-			"label": "Peacock_A15_LickingFeathers",
+		"133cdc5178b4444a9296a5e0a628a670": {
+			"id": "133cdc5178b4444a9296a5e0a628a670",
+			"label": "Peacock_A15_Spread feathers",
 			"parent": {
 				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
 				"order": "a6",
-				"scriptName": "Peacock_A15_LickingFeathers"
+				"scriptName": "Peacock_A15_Spread_feathers"
 			},
 			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
 		},
@@ -488,43 +389,53 @@
 			},
 			"type": "./EstuaryVoiceConnection#EstuaryVoiceConnection"
 		},
-		"395ad5c7fd814f27a1cb790b630922d7": {
-			"id": "395ad5c7fd814f27a1cb790b630922d7",
-			"label": "FixGLTFMaterials",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a3",
-				"scriptName": "FixGLTFMaterials"
-			},
-			"type": "./FixGLTFMaterials#FixGLTFMaterials"
-		},
-		"673fa75cb9bf440cbf1a9e8feae68855": {
-			"id": "673fa75cb9bf440cbf1a9e8feae68855",
-			"label": "Peacock_A15_SpreadFeathers2",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a7",
-				"scriptName": "Peacock_A15_SpreadFeathers2"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
-		},
-		"6f84c31dfc5b4a6a8a352f88698c441b": {
-			"id": "6f84c31dfc5b4a6a8a352f88698c441b",
-			"label": "Peacock_A15_Spreadfeathers",
-			"parent": {
-				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a5",
-				"scriptName": "Peacock_A15_Spreadfeathers"
-			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
-		},
-		"bfdf8fcf7d5a45948ad17dc9b1039211": {
-			"id": "bfdf8fcf7d5a45948ad17dc9b1039211",
+		"3ef692a23125448599f4ab058321b433": {
+			"id": "3ef692a23125448599f4ab058321b433",
 			"label": "Peacock_A15_Idle",
 			"parent": {
 				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a2",
+				"scriptName": "Peacock_A15_Idle"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
+		"48656543da9e4fb7aea9ecbbf9b5816e": {
+			"id": "48656543da9e4fb7aea9ecbbf9b5816e",
+			"label": "Peacock_A15_Run",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a5",
+				"scriptName": "Peacock_A15_Run"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
+		"4cc57256f8ed4a10a7d64d06d8e26a1b": {
+			"id": "4cc57256f8ed4a10a7d64d06d8e26a1b",
+			"label": "Peacock_A15_Walk",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a3",
+				"scriptName": "Peacock_A15_Walk"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
+		"a712d9afd0464d6ebfcea0d913c82138": {
+			"id": "a712d9afd0464d6ebfcea0d913c82138",
+			"label": "Peacock_A15_Spread feathers2",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
+				"order": "a7",
+				"scriptName": "Peacock_A15_Spread_feathers2"
+			},
+			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+		},
+		"ae067a28f30a4331b42340110d0471c4": {
+			"id": "ae067a28f30a4331b42340110d0471c4",
+			"label": "Peacock_A15_licking feathers",
+			"parent": {
+				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
 				"order": "a4",
-				"scriptName": "Peacock_A15_Idle0"
+				"scriptName": "Peacock_A15_licking_feathers"
 			},
 			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
 		},
@@ -537,28 +448,22 @@
 			},
 			"type": "./SampleCharacterAnimator#SampleCharacterAnimator"
 		},
-		"f3bcc0f707b1459c991dd232a635b1e2": {
-			"id": "f3bcc0f707b1459c991dd232a635b1e2",
-			"label": "Peacock_A15_Walk",
+		"e0d67e0969744a54a31380db44ef559f": {
+			"id": "e0d67e0969744a54a31380db44ef559f",
+			"label": "FixGLTFMaterials",
 			"parent": {
 				"id": "60ca8ba9c40a446bbb24a9efd9d9cb21",
-				"order": "a8",
-				"scriptName": "Peacock_A15_Walk"
+				"order": "a1",
+				"scriptName": "FixGLTFMaterials"
 			},
-			"type": "@zcomponent/three/lib/behaviors/Animation#Animation"
+			"type": "./FixGLTFMaterials#FixGLTFMaterials"
 		}
 	},
 	"constructorProps": {
 	},
 	"entitiesByLabel": {
-		"Button": {
-			"0d292fedc36f47e6b38db8eb0c0a6921": true
-		},
 		"CameraEnvironmentMap": {
 			"8aceca5f56f54ae298054c8773fa5d2e": true
-		},
-		"DebugOverlay": {
-			"ad45d1a5acda48c69755ecab561a19b7": true
 		},
 		"DefaultCookieConsent": {
 			"0ba8e27369df45ca897731dcb1e39bcf": true
@@ -572,14 +477,23 @@
 		"DirectionalLight": {
 			"857f9901b65b42c89a3ff04470d70738": true
 		},
+		"GLTF": {
+			"c3515a7f18fe43038c18297250e5503e": true
+		},
+		"GLTF 2": {
+			"ed61c0d421864400a838e12a07237017": true
+		},
+		"GLTF 3": {
+			"80788134dcf54644acd5cceeab2b6aef": true
+		},
+		"GLTF 4": {
+			"71076c6a0a564e1593e8175dedfe506c": true
+		},
 		"Group": {
 			"root": true
 		},
-		"ImmersalAnchorGroup": {
-			"9d15f2ec62184b1d97dafac07eb9b52b": true
-		},
 		"PatrolBoundary": {
-			"70c1c2f87a1e445c81b01db9d1d33c9f": true
+			"90dd910bde5242d6922f1a7f23849523": true
 		},
 		"Peacock.glb": {
 			"60ca8ba9c40a446bbb24a9efd9d9cb21": true
@@ -587,6 +501,9 @@
 		"ShadowPlane": {
 			"26855c66e5484b449401ca65edab4860": true
 		},
+		"UserPlacementAnchorGroup": {
+			"9d15f2ec62184b1d97dafac07eb9b52b": true
+		},
 		"WorldTracker": {
 			"43661c8d3ef04ff19efbafeb72bb229b": true
 		},
@@ -595,29 +512,11 @@
 		},
 		"ZapparCamera": {
 			"d056c264c3d345908a1345aeb612ed9d": true
-		},
-		"marker.glb": {
-			"c1436a2879ef4f7da8fec1245ebdabd8": true
-		},
-		"marker.glb 2": {
-			"b2bed9100d304718a43e7caed392a228": true
-		},
-		"marker.glb 3": {
-			"9ad0055394464bc295613f07657950d9": true
-		},
-		"marker.glb 4": {
-			"3c9d24ff852b4831ad43edc516f2918a": true
 		}
 	},
 	"entitiesByScriptName": {
-		"Button": {
-			"0d292fedc36f47e6b38db8eb0c0a6921": true
-		},
 		"CameraEnvironmentMap": {
 			"8aceca5f56f54ae298054c8773fa5d2e": true
-		},
-		"DebugOverlay": {
-			"ad45d1a5acda48c69755ecab561a19b7": true
 		},
 		"DefaultCookieConsent": {
 			"0ba8e27369df45ca897731dcb1e39bcf": true
@@ -631,17 +530,29 @@
 		"DirectionalLight": {
 			"857f9901b65b42c89a3ff04470d70738": true
 		},
-		"ImmersalAnchorGroup": {
-			"9d15f2ec62184b1d97dafac07eb9b52b": true
+		"GLTF": {
+			"c3515a7f18fe43038c18297250e5503e": true
+		},
+		"GLTF_2": {
+			"ed61c0d421864400a838e12a07237017": true
+		},
+		"GLTF_3": {
+			"80788134dcf54644acd5cceeab2b6aef": true
+		},
+		"GLTF_4": {
+			"71076c6a0a564e1593e8175dedfe506c": true
 		},
 		"PatrolBoundary": {
-			"70c1c2f87a1e445c81b01db9d1d33c9f": true
+			"90dd910bde5242d6922f1a7f23849523": true
 		},
 		"Peacock_glb": {
 			"60ca8ba9c40a446bbb24a9efd9d9cb21": true
 		},
 		"ShadowPlane": {
 			"26855c66e5484b449401ca65edab4860": true
+		},
+		"UserPlacementAnchorGroup": {
+			"9d15f2ec62184b1d97dafac07eb9b52b": true
 		},
 		"WorldTracker": {
 			"43661c8d3ef04ff19efbafeb72bb229b": true
@@ -651,78 +562,59 @@
 		},
 		"ZapparCamera": {
 			"d056c264c3d345908a1345aeb612ed9d": true
-		},
-		"marker_glb": {
-			"c1436a2879ef4f7da8fec1245ebdabd8": true
-		},
-		"marker_glb_2": {
-			"b2bed9100d304718a43e7caed392a228": true
-		},
-		"marker_glb_3": {
-			"9ad0055394464bc295613f07657950d9": true
-		},
-		"marker_glb_4": {
-			"3c9d24ff852b4831ad43edc516f2918a": true
 		}
 	},
 	"entityConstructorProps": {
 		"0ba8e27369df45ca897731dcb1e39bcf": {
 		},
-		"0d292fedc36f47e6b38db8eb0c0a6921": {
-		},
-		"0fc6823e2238490499ed99485e57751a": {
-			"name": "Peacock_A15_licking feathers"
+		"133cdc5178b4444a9296a5e0a628a670": {
+			"name": "Peacock_A15_Spread feathers"
 		},
 		"23a0093e086a47b0b31edc05a01beda8-0": {
 		},
 		"26855c66e5484b449401ca65edab4860": {
 		},
-		"395ad5c7fd814f27a1cb790b630922d7": {
-		},
-		"3c9d24ff852b4831ad43edc516f2918a": {
-			"source": "file://./3D Models/marker.glb"
+		"3ef692a23125448599f4ab058321b433": {
+			"name": "Peacock_A15_Idle"
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
+		},
+		"48656543da9e4fb7aea9ecbbf9b5816e": {
+			"name": "Peacock_A15_Run"
+		},
+		"4cc57256f8ed4a10a7d64d06d8e26a1b": {
+			"name": "Peacock_A15_Walk"
 		},
 		"52148d8eafe3426085e700e049662c07": {
 		},
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
 			"source": "file://./3D Models/CHAR_Peacock.glb"
 		},
-		"673fa75cb9bf440cbf1a9e8feae68855": {
-			"name": "Peacock_A15_Spread feathers2"
-		},
-		"6f84c31dfc5b4a6a8a352f88698c441b": {
-			"name": "Peacock_A15_Spread feathers"
-		},
-		"70c1c2f87a1e445c81b01db9d1d33c9f": {
+		"71076c6a0a564e1593e8175dedfe506c": {
+			"source": "file://./3D Models/marker.glb"
 		},
 		"73b9420a21f742ec908c3abf9df3f40a": {
 		},
 		"7b6fb4d895774174b5d151eec86b704c": {
 		},
+		"80788134dcf54644acd5cceeab2b6aef": {
+			"source": "file://./3D Models/marker.glb"
+		},
 		"857f9901b65b42c89a3ff04470d70738": {
 		},
 		"8aceca5f56f54ae298054c8773fa5d2e": {
 		},
-		"9ad0055394464bc295613f07657950d9": {
-			"source": "file://./3D Models/marker.glb"
+		"90dd910bde5242d6922f1a7f23849523": {
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
-			"developerToken": "d9d150c990cf2d0e39a60981453c2ab1ba5d6b3d1d86a556c8e7d8e6a81c0647",
-			"mapID": "147456",
-			"previewType": "DensePLY",
-			"showPreviewAtRuntime": false
 		},
-		"ad45d1a5acda48c69755ecab561a19b7": {
+		"a712d9afd0464d6ebfcea0d913c82138": {
+			"name": "Peacock_A15_Spread feathers2"
 		},
-		"b2bed9100d304718a43e7caed392a228": {
-			"source": "file://./3D Models/marker.glb"
+		"ae067a28f30a4331b42340110d0471c4": {
+			"name": "Peacock_A15_licking feathers"
 		},
-		"bfdf8fcf7d5a45948ad17dc9b1039211": {
-			"name": "Peacock_A15_Idle"
-		},
-		"c1436a2879ef4f7da8fec1245ebdabd8": {
+		"c3515a7f18fe43038c18297250e5503e": {
 			"source": "file://./3D Models/marker.glb"
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
@@ -730,8 +622,10 @@
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
 		},
-		"f3bcc0f707b1459c991dd232a635b1e2": {
-			"name": "Peacock_A15_Walk"
+		"e0d67e0969744a54a31380db44ef559f": {
+		},
+		"ed61c0d421864400a838e12a07237017": {
+			"source": "file://./3D Models/marker.glb"
 		}
 	},
 	"entityPropOverrides": {
@@ -783,31 +677,11 @@
 	"entityProps": {
 		"0ba8e27369df45ca897731dcb1e39bcf": {
 		},
-		"0d292fedc36f47e6b38db8eb0c0a6921": {
-			"display": "flex",
-			"enabled": false,
-			"height": [
-				15,
-				"px"
-			],
-			"marginRight": [
-				10,
-				"px"
-			],
-			"marginTop": [
-				10,
-				"px"
-			],
-			"position": "relative",
-			"width": [
-				25,
-				"px"
-			]
-		},
-		"0fc6823e2238490499ed99485e57751a": {
+		"133cdc5178b4444a9296a5e0a628a670": {
 		},
 		"23a0093e086a47b0b31edc05a01beda8-0": {
-			"characterId": "030181e9-7f5f-452e-8b00-e8692ccfebad",
+			"apiKey": "est_eAmjsW34zqI3S_fQxNXi0JNrjkuk7X1MAkCZDq_hQjg",
+			"characterId": "09ddd4fa-8b5a-4390-8ebb-6e23ea1d8742",
 			"playerId": "player-42"
 		},
 		"26855c66e5484b449401ca65edab4860": {
@@ -822,101 +696,77 @@
 				1
 			]
 		},
-		"395ad5c7fd814f27a1cb790b630922d7": {
-		},
-		"3c9d24ff852b4831ad43edc516f2918a": {
-			"position": [
-				2.6668196277045357,
-				-1.6,
-				2.7368725196742574
-			],
-			"visible": false
+		"3ef692a23125448599f4ab058321b433": {
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
+		},
+		"48656543da9e4fb7aea9ecbbf9b5816e": {
+		},
+		"4cc57256f8ed4a10a7d64d06d8e26a1b": {
 		},
 		"52148d8eafe3426085e700e049662c07": {
 		},
 		"60ca8ba9c40a446bbb24a9efd9d9cb21": {
-			"enabled": true,
 			"position": [
-				2.815086967433861,
-				-1.636584507626377,
-				0.4896916516493881
-			],
-			"rotation": [
+				0.23310283442040847,
 				0,
-				-2.4978657861199194,
-				0
+				-1.6688587197891351
 			],
 			"scale": [
-				1,
-				1,
-				1
+				0.5,
+				0.5,
+				0.5
+			]
+		},
+		"71076c6a0a564e1593e8175dedfe506c": {
+			"position": [
+				0.5,
+				0,
+				-1.5
 			],
-			"visible": true
-		},
-		"673fa75cb9bf440cbf1a9e8feae68855": {
-			"weight": 1
-		},
-		"6f84c31dfc5b4a6a8a352f88698c441b": {
-		},
-		"70c1c2f87a1e445c81b01db9d1d33c9f": {
+			"visible": false
 		},
 		"73b9420a21f742ec908c3abf9df3f40a": {
-			"enabled": false,
 			"preview": "tracking"
 		},
 		"7b6fb4d895774174b5d151eec86b704c": {
+		},
+		"80788134dcf54644acd5cceeab2b6aef": {
+			"position": [
+				0.5,
+				0,
+				-2.5
+			],
+			"visible": false
 		},
 		"857f9901b65b42c89a3ff04470d70738": {
 			"castShadow": true,
 			"position": [
 				0,
 				3.822578351542651,
-				0
+				-1.25
 			]
 		},
 		"8aceca5f56f54ae298054c8773fa5d2e": {
 		},
-		"9ad0055394464bc295613f07657950d9": {
-			"position": [
-				-0.4257382526531517,
-				-1.6,
-				0.4064305732072895
-			],
-			"visible": false
+		"90dd910bde5242d6922f1a7f23849523": {
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
-			"visible": true,
-			"visibleWhenInitializing": false,
-			"visibleWhenPaused": true,
-			"wireframePreview": false
+			"restartPlacementMode": "place"
 		},
-		"ad45d1a5acda48c69755ecab561a19b7": {
-			"enabled": false,
-			"verticalAnchor": "bottomSafe",
-			"visible": false
+		"a712d9afd0464d6ebfcea0d913c82138": {
 		},
-		"b2bed9100d304718a43e7caed392a228": {
+		"ae067a28f30a4331b42340110d0471c4": {
+		},
+		"c3515a7f18fe43038c18297250e5503e": {
 			"position": [
-				1.1571745512350562,
-				-1.6,
-				-2.970570055786844
-			],
-			"visible": false
-		},
-		"bfdf8fcf7d5a45948ad17dc9b1039211": {
-		},
-		"c1436a2879ef4f7da8fec1245ebdabd8": {
-			"position": [
-				4.502500004946047,
-				-1.6,
-				-1.223946139381384
+				-0.5,
+				0,
+				-1.5
 			],
 			"visible": false
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
-			"originAnchor": "ImmersalAnchorGroup"
 		},
 		"d8f2a7b1c3e54d6f9a0b1c2d3e4f5a6b-0": {
 			"conversatingLickingWeight": 0.2,
@@ -924,12 +774,25 @@
 			"conversatingTimeout": 8,
 			"crossfadeTime": 0.75,
 			"patrolBoundaryParent": "PatrolBoundary",
-			"proximityRadius": 1.8,
-			"showDebugOverlay": true,
+			"proximityRadius": 0.1,
+			"showDebugOverlay": false,
 			"turnSpeed": 0.8,
 			"walkSpeed": 0.5
 		},
-		"f3bcc0f707b1459c991dd232a635b1e2": {
+		"e0d67e0969744a54a31380db44ef559f": {
+		},
+		"ed61c0d421864400a838e12a07237017": {
+			"position": [
+				-0.5,
+				0,
+				-2.5
+			],
+			"rotation": [
+				0,
+				0,
+				0
+			],
+			"visible": false
 		},
 		"root": {
 			"position": [
@@ -951,16 +814,6 @@
 			"scriptName": "DefaultCookieConsent",
 			"type": "@zcomponent/core/lib/components/DefaultCookieConsent#DefaultCookieConsent"
 		},
-		"0d292fedc36f47e6b38db8eb0c0a6921": {
-			"id": "0d292fedc36f47e6b38db8eb0c0a6921",
-			"label": "Button",
-			"parent": {
-				"id": "ad45d1a5acda48c69755ecab561a19b7",
-				"order": "a0"
-			},
-			"scriptName": "Button",
-			"type": "@zcomponent/html/lib/button#Button"
-		},
 		"26855c66e5484b449401ca65edab4860": {
 			"id": "26855c66e5484b449401ca65edab4860",
 			"label": "ShadowPlane",
@@ -971,16 +824,6 @@
 			},
 			"scriptName": "ShadowPlane",
 			"type": "@zcomponent/three/lib/components/meshes/ShadowPlane#ShadowPlane"
-		},
-		"3c9d24ff852b4831ad43edc516f2918a": {
-			"id": "3c9d24ff852b4831ad43edc516f2918a",
-			"label": "marker.glb 4",
-			"parent": {
-				"id": "70c1c2f87a1e445c81b01db9d1d33c9f",
-				"order": "a0G"
-			},
-			"scriptName": "marker_glb_4",
-			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"43661c8d3ef04ff19efbafeb72bb229b": {
 			"id": "43661c8d3ef04ff19efbafeb72bb229b",
@@ -1012,15 +855,15 @@
 			"scriptName": "Peacock_glb",
 			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
-		"70c1c2f87a1e445c81b01db9d1d33c9f": {
-			"id": "70c1c2f87a1e445c81b01db9d1d33c9f",
-			"label": "PatrolBoundary",
+		"71076c6a0a564e1593e8175dedfe506c": {
+			"id": "71076c6a0a564e1593e8175dedfe506c",
+			"label": "GLTF 4",
 			"parent": {
-				"id": "root",
-				"order": "a8"
+				"id": "90dd910bde5242d6922f1a7f23849523",
+				"order": "Zx"
 			},
-			"scriptName": "PatrolBoundary",
-			"type": "@zcomponent/three/lib/components/Group#Group"
+			"scriptName": "GLTF_4",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"73b9420a21f742ec908c3abf9df3f40a": {
 			"id": "73b9420a21f742ec908c3abf9df3f40a",
@@ -1042,6 +885,16 @@
 			"scriptName": "Defaults",
 			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
+		"80788134dcf54644acd5cceeab2b6aef": {
+			"id": "80788134dcf54644acd5cceeab2b6aef",
+			"label": "GLTF 3",
+			"parent": {
+				"id": "90dd910bde5242d6922f1a7f23849523",
+				"order": "Zy"
+			},
+			"scriptName": "GLTF_3",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+		},
 		"857f9901b65b42c89a3ff04470d70738": {
 			"id": "857f9901b65b42c89a3ff04470d70738",
 			"label": "DirectionalLight",
@@ -1062,54 +915,34 @@
 			"scriptName": "CameraEnvironmentMap",
 			"type": "@zcomponent/zappar-three/lib/components/environments/CameraEnvironmentMap#CameraEnvironmentMap"
 		},
-		"9ad0055394464bc295613f07657950d9": {
-			"id": "9ad0055394464bc295613f07657950d9",
-			"label": "marker.glb 3",
+		"90dd910bde5242d6922f1a7f23849523": {
+			"id": "90dd910bde5242d6922f1a7f23849523",
+			"label": "PatrolBoundary",
 			"parent": {
-				"id": "70c1c2f87a1e445c81b01db9d1d33c9f",
-				"order": "a0V"
+				"id": "root",
+				"order": "a6"
 			},
-			"scriptName": "marker_glb_3",
-			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
+			"scriptName": "PatrolBoundary",
+			"type": "@zcomponent/three/lib/components/Group#Group"
 		},
 		"9d15f2ec62184b1d97dafac07eb9b52b": {
 			"id": "9d15f2ec62184b1d97dafac07eb9b52b",
-			"label": "ImmersalAnchorGroup",
+			"label": "UserPlacementAnchorGroup",
 			"parent": {
 				"id": "43661c8d3ef04ff19efbafeb72bb229b",
+				"order": "Zz"
+			},
+			"scriptName": "UserPlacementAnchorGroup",
+			"type": "@zcomponent/zappar-three/lib/components/anchorgroups/UserPlacementAnchorGroup#UserPlacementAnchorGroup"
+		},
+		"c3515a7f18fe43038c18297250e5503e": {
+			"id": "c3515a7f18fe43038c18297250e5503e",
+			"label": "GLTF",
+			"parent": {
+				"id": "90dd910bde5242d6922f1a7f23849523",
 				"order": "a0"
 			},
-			"scriptName": "ImmersalAnchorGroup",
-			"type": "@zcomponent/immersal/lib/components/ImmersalAnchorGroup#ImmersalAnchorGroup"
-		},
-		"ad45d1a5acda48c69755ecab561a19b7": {
-			"id": "ad45d1a5acda48c69755ecab561a19b7",
-			"label": "DebugOverlay",
-			"parent": {
-				"id": "root",
-				"order": "a9"
-			},
-			"scriptName": "DebugOverlay",
-			"type": "@zcomponent/three/lib/components/HTML#HTML"
-		},
-		"b2bed9100d304718a43e7caed392a228": {
-			"id": "b2bed9100d304718a43e7caed392a228",
-			"label": "marker.glb 2",
-			"parent": {
-				"id": "70c1c2f87a1e445c81b01db9d1d33c9f",
-				"order": "a1"
-			},
-			"scriptName": "marker_glb_2",
-			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
-		},
-		"c1436a2879ef4f7da8fec1245ebdabd8": {
-			"id": "c1436a2879ef4f7da8fec1245ebdabd8",
-			"label": "marker.glb",
-			"parent": {
-				"id": "70c1c2f87a1e445c81b01db9d1d33c9f",
-				"order": "a0"
-			},
-			"scriptName": "marker_glb",
+			"scriptName": "GLTF",
 			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"d056c264c3d345908a1345aeb612ed9d": {
@@ -1121,6 +954,16 @@
 			},
 			"scriptName": "ZapparCamera",
 			"type": "@zcomponent/zappar-three/lib/components/cameras/Camera#ZapparCamera"
+		},
+		"ed61c0d421864400a838e12a07237017": {
+			"id": "ed61c0d421864400a838e12a07237017",
+			"label": "GLTF 2",
+			"parent": {
+				"id": "90dd910bde5242d6922f1a7f23849523",
+				"order": "Zz"
+			},
+			"scriptName": "GLTF_2",
+			"type": "@zcomponent/three/lib/components/models/GLTF#GLTF"
 		},
 		"root": {
 			"id": "root",

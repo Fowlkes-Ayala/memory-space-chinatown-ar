@@ -8,13 +8,12 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@estuary-ai/sdk": "^0.5.0",
+    "three": "0.150.1",
     "@zcomponent/core": "1.x",
     "@zcomponent/html": "1.x",
-    "@zcomponent/immersal": "1.x",
     "@zcomponent/three": "1.x",
     "@zcomponent/zappar-three": "4.x",
-    "three": "0.150.1"
+    "@estuary-ai/sdk": "^0.1.30"
   },
   "devDependencies": {
     "@types/three": "0.150.1",
